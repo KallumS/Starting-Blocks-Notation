@@ -617,6 +617,175 @@ do
 end
 
 ------------------------------------------------------------------------------
+-- Heads and accidentals
+------------------------------------------------------------------------------
+
+-- Half the height of an accidental and of a notehead, in staff degrees. A
+-- sharp stands about two and a half spaces tall, a head one.
+local ACC_HALF, HEAD_HALF = 2.5, 1.0
+
+-- Where each head's ink actually is, in spaces either side of the element's x.
+local function headSpan(el, h)
+  local rx = (el.value.den <= 1) and N.WHOLE_RX or N.HEAD_RX
+  local cx = (h.side == 1) and (el.sideDir * 2 * rx) or 0
+  return cx - rx, cx + rx
+end
+
+local function accSpan(h)
+  local w = N.ACC_WIDTHS[h.acc]
+  return h.accDX - w / 2, h.accDX + w / 2
+end
+
+-- **No accidental may sit on top of a notehead.** This is the one that was
+-- missing: a six-nine chord is written as a whole note, a whole note has no
+-- stem, and the head crossed to the other side of the stem was sent one way by
+-- the layout and drawn the other way, straight onto its own sharp.
+do
+  local bad, checked = nil, 0
+  for _, root in ipairs({ "C", "F#", "Db", "A", "Eb" }) do
+    for _, scale in ipairs({ "Major", "Minor", "Harm Minor", "Dim W-H" }) do
+      for _, fam in ipairs(E.FAMILIES) do
+        for _, chop in ipairs({ "1/1", "1/4" }) do    -- stemless, then stemmed
+          for deg = 0, 4 do
+            for ch = 1, #E.CHORDS, 7 do
+              local st = state(function(s)
+                s.root, s.scale, s.degree = ROOT(root), SCL(scale), deg
+                s.family = index(E.FAMILIES, fam)
+                s.chord, s.chop = ch, RATE(chop)
+              end)
+              local doc = lay(st)
+              for _, m in ipairs(doc.measures) do
+                for _, el in ipairs(elements(m)) do
+                  if el.kind == "chord" then
+                    for _, h in ipairs(el.heads) do
+                      if h.acc then
+                        checked = checked + 1
+                        local aL, aR = accSpan(h)
+                        for _, g in ipairs(el.heads) do
+                          local gL = select(1, headSpan(el, g))
+                          -- Only a head the accidental could actually reach.
+                          if math.abs(h.pos - g.pos) < ACC_HALF + HEAD_HALF
+                             and aR > gL + 1e-6 then
+                            bad = bad or ("%s %s deg%d chord%d: the %s on %s runs to %.2f, " ..
+                              "and a head starts at %.2f"):format(root, scale, deg, ch,
+                              (h.acc > 0 and "sharp" or "flat"), h.name or "?", aR, gL)
+                          end
+                        end
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  ok(checked > 200, "the sweep found a real number of accidentals (" .. checked .. ")")
+  ok(bad == nil, "no accidental is drawn on top of a notehead: " .. tostring(bad))
+end
+
+-- Two accidentals must not sit on top of each other either: near neighbours go
+-- into separate columns, and distant ones share one rather than marching off
+-- to the left.
+do
+  local bad, pairs2 = nil, 0
+  for _, deg in ipairs({ 0, 1, 4, 5 }) do
+    for ch = 1, #E.CHORDS do
+      local st = state(function(s)
+        s.root, s.scale, s.degree = ROOT("Db"), SCL("Harm Minor"), deg
+        s.family = index(E.FAMILIES, "Extended")
+        s.chord = ch
+      end)
+      local doc = lay(st)
+      for _, m in ipairs(doc.measures) do
+        for _, el in ipairs(elements(m)) do
+          if el.kind == "chord" then
+            for i, h in ipairs(el.heads) do
+              for j = i + 1, #el.heads do
+                local g = el.heads[j]
+                if h.acc and g.acc then
+                  pairs2 = pairs2 + 1
+                  local hL, hR = accSpan(h)
+                  local gL, gR = accSpan(g)
+                  local overlapX = hR > gL + 1e-6 and gR > hL + 1e-6
+                  local overlapY = math.abs(h.pos - g.pos) < 2 * ACC_HALF
+                  if overlapX and overlapY then
+                    bad = bad or ("deg%d chord%d: two accidentals overlap"):format(deg, ch)
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  ok(pairs2 > 20, "the sweep found chords with more than one accidental (" .. pairs2 .. ")")
+  ok(bad == nil, "no two accidentals overlap each other: " .. tostring(bad))
+end
+
+-- A whole note has no stem, and a crossed head still has to go somewhere. It
+-- goes right, and **both modules are told so by the same field** - this is the
+-- disagreement that caused the bug above, so it is asserted directly.
+do
+  local st = state(function(s)
+    s.degree = 5; s.family = index(E.FAMILIES, "Extended"); s.chord = 9
+  end)
+  local doc = lay(st)
+  local el = elements(doc.measures[1])[1]
+  eq(el.stem, nil, "a whole-note chord has no stem")
+  eq(el.sideDir, 1, "and its crossed head goes to the right")
+  local crossed = 0
+  for _, h in ipairs(el.heads) do if h.side == 1 then crossed = crossed + 1 end end
+  eq(crossed, 1, "the six-nine chord has one head crossed over")
+end
+do
+  local st = state(function(s)
+    s.degree = 5; s.family = index(E.FAMILIES, "Extended"); s.chord = 9
+    s.chop = RATE("1/4")
+    s.oct = 1                                  -- high enough for a downward stem
+  end)
+  local doc = lay(st)
+  for _, el in ipairs(elements(doc.measures[1])) do
+    if el.kind == "chord" and el.stem == "down" then
+      eq(el.sideDir, -1, "a downward stem sends its crossed head to the left")
+      -- And the accidentals then clear it, which is the whole point.
+      for _, h in ipairs(el.heads) do
+        if h.acc then
+          local aR = select(2, accSpan(h))
+          local far = select(1, headSpan(el, el.heads[1]))
+          for _, g in ipairs(el.heads) do
+            far = math.min(far, (select(1, headSpan(el, g))))
+          end
+          ok(aR <= far + 1e-6,
+             "and the accidentals move out to clear it")
+        end
+      end
+    end
+  end
+end
+
+-- Seconds are what make a head cross the stem at all.
+do
+  local function crossed(positions)
+    local heads = {}
+    for i, p in ipairs(positions) do heads[i] = { pos = p } end
+    local el = { kind = "chord", value = { den = 4, dots = 0 },
+                 heads = heads, stem = "up" }
+    N.placeHeads({ el })
+    local out = {}
+    for i, h in ipairs(el.heads) do out[i] = h.side end
+    return table.concat(out, "")
+  end
+  eq(crossed({ 0, 2, 4 }), "000", "a chord in thirds needs no head crossed over")
+  eq(crossed({ 0, 1 }), "01", "a second crosses its upper head")
+  eq(crossed({ 0, 1, 2 }), "010", "a cluster of three crosses only the middle one")
+  eq(crossed({ 0, 1, 2, 3 }), "0101", "and a cluster of four alternates")
+end
+
+------------------------------------------------------------------------------
 -- Staves
 ------------------------------------------------------------------------------
 

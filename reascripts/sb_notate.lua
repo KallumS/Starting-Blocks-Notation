@@ -598,6 +598,7 @@ function M.layout(block, opts)
       M.beam(staff.elements, group, m.ticks)
       staff.tuplets = M.tuplets(staff.elements)
       M.stems(staff.elements, doc.staves[s].clef == "perc")
+      M.placeHeads(staff.elements)
     end
   end
 
@@ -712,6 +713,112 @@ function M.stems(elements, perc)
 end
 
 ------------------------------------------------------------------------------
+-- Heads and accidentals
+------------------------------------------------------------------------------
+
+-- Half a notehead, in spaces. `sb_draw.lua` draws the ellipse exactly this
+-- wide and reads these rather than keeping its own copy: the layout cannot say
+-- where the accidental in front of a head goes without knowing how much room
+-- the head takes, and two numbers that have to agree should be one number.
+M.HEAD_RX  = 0.62
+M.WHOLE_RX = 0.82
+
+-- How wide each accidental is, and the air between the block of them and the
+-- leftmost head.
+M.ACC_WIDTHS = { [-2] = 1.25, [-1] = 0.78, [0] = 0.80, [1] = 0.90, [2] = 0.80 }
+M.ACC_PAD    = 0.30
+
+-- How far apart two accidentals must be before they can share a column, in
+-- staff degrees. A sharp stands about two and a half spaces tall, which is
+-- five of these, so a sixth apart is the rule and leaves a little air.
+M.ACC_CLEAR  = 6
+
+-- Which side of the stem each head sits on, and where each accidental goes.
+--
+-- This runs after `M.stems`, because both answers depend on which way the stem
+-- turned: a head pushed off a downward stem goes to the *left* of it, and the
+-- accidentals then have to clear a head that is a whole width further out than
+-- the rest. Not clearing it is what drew a sharp underneath a notehead.
+function M.placeHeads(elements)
+  for _, el in ipairs(elements) do
+    if el.kind == "chord" and el.heads then
+      local rx = (el.value.den <= 1) and M.WHOLE_RX or M.HEAD_RX
+
+      -- Which way a crossed head goes, decided **here and once**. A downward
+      -- stem puts it on the left, anything else on the right - and a whole
+      -- note, which has no stem at all, counts as anything else.
+      --
+      -- This used to be worked out twice, once here as `stem ~= "down"` and
+      -- once in the drawing as `stem == "up"`. Those agree about every note
+      -- with a stem and disagree about every note without one, so a whole-note
+      -- chord put its crossed head on the left while the accidentals were
+      -- placed as though it had gone right. That is how a sharp ended up
+      -- underneath a notehead.
+      el.sideDir = (el.stem == "down") and -1 or 1
+
+      -- Two heads a step apart cannot both sit on the same side of the stem,
+      -- so the upper of each such pair crosses it. This is the one thing that
+      -- makes a close-voiced chord readable rather than a blot.
+      local flip = false
+      for i, h in ipairs(el.heads) do
+        local prev = el.heads[i - 1]
+        flip = (prev ~= nil and math.abs(h.pos - prev.pos) == 1 and not flip)
+        h.side = flip and 1 or 0
+      end
+
+      -- How far left of the chord's own x the ink reaches.
+      local left = rx
+      for _, h in ipairs(el.heads) do
+        if h.side == 1 and el.sideDir < 0 then left = math.max(left, 3 * rx) end
+      end
+      el.headLeft = left
+
+      -- The accidentals, in columns working out from the heads. A column holds
+      -- as many as will fit without touching, so a chord with two of them far
+      -- apart keeps both in one column instead of marching off to the left.
+      -- Topmost first, which is the order that puts it nearest the chord.
+      local cols, used = {}, 0
+      for i = #el.heads, 1, -1 do
+        local h = el.heads[i]
+        h.accCol, h.accDX = nil, nil
+        if h.acc then
+          local c = 1
+          while true do
+            local clash = false
+            for _, p in ipairs(cols[c] or {}) do
+              if math.abs(p - h.pos) < M.ACC_CLEAR then clash = true; break end
+            end
+            if not clash then break end
+            c = c + 1
+          end
+          cols[c] = cols[c] or {}
+          cols[c][#cols[c] + 1] = h.pos
+          h.accCol = c
+          used = math.max(used, c)
+        end
+      end
+
+      -- Each column is as wide as its widest accidental, and every accidental
+      -- in it is centred on that width.
+      local at = left + M.ACC_PAD
+      local centre = {}
+      for c = 1, used do
+        local w = 0
+        for _, h in ipairs(el.heads) do
+          if h.accCol == c then w = math.max(w, M.ACC_WIDTHS[h.acc] or 0.8) end
+        end
+        centre[c] = at + w / 2
+        at = at + w
+      end
+      for _, h in ipairs(el.heads) do
+        if h.accCol then h.accDX = -centre[h.accCol] end
+      end
+      el.accWidth = (used > 0) and (at - left) or 0
+    end
+  end
+end
+
+------------------------------------------------------------------------------
 -- Spacing
 ------------------------------------------------------------------------------
 
@@ -751,15 +858,13 @@ function M.space(doc, width)
     local x, at = M.PAD_LEFT, {}
     for i, o in ipairs(onsets) do
       -- An accidental is written in front of the note, so the column has to
-      -- open far enough to the left to hold it.
+      -- open far enough to the left to hold it - and a chord needing two
+      -- columns of them needs twice the room, which is why the element works
+      -- its own width out rather than being given a flat allowance here.
       local acc = 0
       for _, staff in ipairs(m.staves) do
         for _, el in ipairs(staff.elements) do
-          if el.at == o and el.heads then
-            for _, h in ipairs(el.heads) do
-              if h.acc then acc = math.max(acc, M.ACC_WIDTH) end
-            end
-          end
+          if el.at == o then acc = math.max(acc, el.accWidth or 0) end
         end
       end
       x = x + acc

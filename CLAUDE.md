@@ -13,6 +13,25 @@ preview is a page of music where it used to be a piano roll.
 is the whole point of the fork. A request that amounts to "show the notes in a
 grid as well" is a request to become the app this one came from.
 
+## Where the reasons are
+
+This file is the working guide: what to do, and what not to break. Two other
+places hold what it leaves out.
+
+- **[`docs/decisions/`](docs/decisions/README.md)** - one record per choice
+  someone could reasonably make the other way, with the reasoning underneath
+  it. Where this file states a rule flatly, the record argues it. They are
+  referred to below by number, so **(0005)** means
+  `docs/decisions/0005-notate-the-share-of-the-bar.md`. They are not edited to
+  stay true: a reversed decision keeps its text and gains a pointer.
+- **[`docs/sessions/`](docs/sessions/README.md)** - one log per working
+  session. The route rather than the result: what went wrong, what took four
+  attempts, what looked broken and was not. `git log` is the changelog; these
+  are the things a commit message cannot hold.
+
+Write to both. A rule added here without its reason gets undone by the next
+person who finds it inconvenient.
+
 ## Shape of it
 
 | | |
@@ -38,10 +57,26 @@ window hands it one backed by a ReaImGui draw list; `tests/test_draw.lua` hands
 it one that writes down every mark; `tools/preview_page.lua` hands it one that
 writes SVG. All three are drawing the same page.
 
-Keep that seam. It is what lets an assertion about a ledger line exist at all,
-and it is why the "ReaImGui lives in one file" rule survived growing a whole
-engraver. If a drawing question needs ImGui, the answer is another pen call,
-not an import.
+Keep that seam (0003). It is what lets an assertion about a ledger line exist
+at all, and it is why the "ReaImGui lives in one file" rule survived growing a
+whole engraver. If a drawing question needs ImGui, the answer is another pen
+call, not an import.
+
+**The pen is four calls and adding a fifth costs three implementations**, so
+the bar for one is high. Curves are sampled into short `line` segments by
+`sb_draw.lua` itself rather than being a pen call, and that is the answer
+almost every time a glyph seems to need something new:
+
+```lua
+pen.line(x1, y1, x2, y2, col, thickness)
+pen.poly(pts, col)                    -- pts is flat {x1,y1,x2,y2,...}, convex
+pen.circle(x, y, r, col, filled)      -- filled false means stroked
+pen.text(x, y, col, str, size, center)  -- y is the middle, not the baseline
+```
+
+`poly` must be **convex**: the ellipses and beams are, and a glyph that wants a
+concave shape wants two polygons. Colours are `0xRRGGBBAA` throughout, as
+everywhere else in the window.
 
 ## What this thing is for
 
@@ -180,6 +215,25 @@ shrinks `E.MAX_NOTES` to test it rather than pretending some setting reaches it.
   tried, whatever the patch notes say. The outer radius appears to be the host
   window's to draw. It was removed rather than left in doing nothing.
 
+**The window's pen is where ReaImGui's awkwardness is kept**, so that none of
+it reaches `sb_draw.lua`. Three things live there and nowhere else:
+
+- `DrawList_AddConvexPolyFilled` wants a **`reaper.array`**, not a table, so
+  the pen wraps every polygon in `reaper.new_array(pts)`. The mocks hand the
+  table straight back, which is enough for them to count its coordinates.
+- Sizing text needs **`DrawList_AddTextEx`**, which older ReaImGui builds do
+  not have. It is feature-detected once through a **`pcall`**, not by reading
+  the key: the test mock's `__index` raises on anything it does not have, so a
+  bare `if ImGui.DrawList_AddTextEx` would be a failure rather than a false.
+  Without it the figures fall back to the window's own font size, which is the
+  only part of the page that is set rather than drawn (0004).
+- The font that sizing needs is created and attached **once, in `main()`**,
+  after `CreateContext`. Attaching per frame leaks.
+
+When you add a pen call, add it to the mock in `tests/test_ui.lua`, the
+recorder in `tests/test_draw.lua`, the recorder in `tools/preview.lua` and the
+SVG pen in `tools/preview_page.lua`. All four, or one of them starts lying.
+
 ## REAPER, from a script
 
 - `TimeMap_GetTimeSigAtTime` returns `num, denom, tempo`. **There is no retval
@@ -257,6 +311,18 @@ paper, and the paper is darker than the chrome the buttons sit on. It also
 asserts that **nothing is drawn in the accent while nothing is playing**, which
 is the assertion that would catch someone restoring the old rule by habit.
 
+**The page can be turned over, and only the page** (0012). A **Light page**
+toggle draws it black on white; the window keeps its chrome either way, because
+a light page is a sheet of paper on the desk rather than a second theme for the
+app. `PAGES` holds the two, and the light one's accent is the same yellow
+through `shade()` rather than a fourth colour - a saturated yellow is invisible
+on white, and adding a colour would be a change of mind about the three rather
+than a use of them.
+
+The setting lives on `ui` and is saved in `VIEW`, beside `SAVED` but not in it:
+the engine owns `st` and clamps every field in it, and a preference about paper
+is nothing to do with the engine.
+
 `shade()` makes the hover and held states from the accent rather than
 hand-picking them. Arithmetic rather than bit operators, like the MIDI writer,
 and it must keep the alpha byte or ReaImGui is handed a fully transparent
@@ -307,6 +373,30 @@ single melody note never does.
 **A beam leans by a quarter of the interval it covers and at most a space and
 a bit.** A rising scale in sixteenths is the shape that settles this: at
 anything near the full interval the beams stand on end.
+
+**Where a head sits and where its accidental goes is the layout's answer, not
+the drawing's** - `M.placeHeads`, which runs after `M.stems` because both
+depend on which way the stem turned. Three things it settles, all of which were
+once settled twice and wrongly:
+
+- **Which way a crossed head goes is one field, `el.sideDir`.** Two heads a
+  step apart cannot share a side, so the upper crosses the stem: left off a
+  downward stem, right off anything else, **including a whole note, which has
+  no stem at all**. This used to be worked out in both modules, as
+  `stem ~= "down"` here and `stem == "up"` there. Those agree about every note
+  with a stem and disagree about every note without one, so a whole-note chord
+  drew its crossed head one way and placed its accidentals the other. That is
+  how a sharp ended up underneath a notehead.
+- **The accidentals clear the leftmost ink, crossed heads included.** A head
+  pushed across the stem sits two head-widths out, not one.
+- **Accidentals pack into columns.** Near neighbours take separate columns and
+  distant ones share, so a chord with two of them does not send the second one
+  marching a step further left for no reason. `M.ACC_CLEAR` is how far apart
+  they have to be, in staff degrees, to share.
+
+`M.HEAD_RX` lives in `sb_notate.lua` rather than with the other drawing
+proportions, because the layout cannot say where an accidental goes without
+knowing how wide a head is, and two copies of that number is one too many.
 
 **Positions are half-spaces above the bottom line**, so a line is even and a
 space is odd. That one convention is why the dot rule (Sec. 11 - always on a
@@ -371,6 +461,16 @@ the engraver added -
   nothing. Both are checked now.
 
 A test that has never failed has not been tested.
+
+**The suite was blind to a whole shape of fault, and it is worth naming.** A
+sharp was drawn underneath its own notehead for a week while every drawing test
+passed, because all of them asserted things about *one* glyph - this stem is on
+the right of its head, this note has a ledger line, this dot is on a space.
+Not one asserted a relationship *between two glyphs of the same chord*, and
+almost every hard problem in engraving is of that shape: what must clear what.
+The accidental checks are written that way now - sweeps asserting that no
+accidental overlaps a head it could reach and no two overlap each other - and a
+new glyph should be asked the same question before it is asked anything else.
 
 **Two invariants do most of the work in the engraver's suite, and both are
 sweeps rather than examples.** Every measure of every block the panels can ask
@@ -442,11 +542,13 @@ iterating on one glyph bearable.
 
 ## History worth knowing
 
-**This app is Starting Blocks with the roll replaced.** The engine, the MIDI
-writer and `sb_place.lua` came across unchanged and should stay that way, so a
-fix upstream is a copy rather than a merge. Everything new is `sb_notate.lua`,
-`sb_draw.lua`, their two suites and `tools/preview_page.lua`.
+**This app is Starting Blocks with the roll replaced** (0001). The engine, the
+MIDI writer and `sb_place.lua` came across unchanged and should stay that way,
+so a fix upstream is a copy rather than a merge. Everything new is
+`sb_notate.lua`, `sb_draw.lua`, their two suites and `tools/preview_page.lua`.
 
+What follows is that app's own history, carried over because it still explains
+why the engine looks the way it does.
 
 Version 1 was a JSFX plus a bridge ReaScript talking over `gmem`. JSFX cannot
 write a file, cannot reach the REAPER API and cannot start a drag - none of

@@ -28,10 +28,11 @@ function D.setNotate(n) N = n end
 -- All of these are in staff spaces. The notehead is the one worth knowing: a
 -- shade wider than it is tall and tilted up to the right, which is what makes
 -- a chord's heads sit against each other rather than in a column.
-local HEAD_RX     = 0.62
+-- The head's width is `N.HEAD_RX`, not a constant here: the layout needs the
+-- same number to work out where the accidental in front of a head goes, and
+-- two copies of it would be two copies to keep in step.
 local HEAD_RY     = 0.50
 local HEAD_TILT   = -20 * math.pi / 180
-local WHOLE_RX    = 0.82
 local WHOLE_RY    = 0.50
 
 local STAFF_TH    = 0.10
@@ -262,9 +263,6 @@ end
 local ACC = { [-2] = doubleFlat, [-1] = flat, [0] = natural,
               [1] = sharp, [2] = doubleSharp }
 
--- How much room each one needs to its left, in spaces.
-local ACC_W = { [-2] = 1.25, [-1] = 0.75, [0] = 0.75, [1] = 0.85, [2] = 0.75 }
-
 ------------------------------------------------------------------------------
 -- Rests
 ------------------------------------------------------------------------------
@@ -341,11 +339,11 @@ local function notehead(pen, x, y, sp, glyph, den, col, ground)
   end
 
   if den <= 1 then
-    ellipse(pen, x, y, WHOLE_RX * sp, WHOLE_RY * sp, 0, col)
+    ellipse(pen, x, y, N.WHOLE_RX * sp, WHOLE_RY * sp, 0, col)
     ellipse(pen, x, y, 0.44 * sp, 0.26 * sp, HEAD_TILT, ground)
     return
   end
-  ellipse(pen, x, y, HEAD_RX * sp, HEAD_RY * sp, HEAD_TILT, col)
+  ellipse(pen, x, y, N.HEAD_RX * sp, HEAD_RY * sp, HEAD_TILT, col)
   if den == 2 then
     -- The counter of an open head is opaque, so the staff line it sits on
     -- stops at its edge rather than running through the hole.
@@ -381,30 +379,11 @@ end
 -- A chord
 ------------------------------------------------------------------------------
 
--- Heads a step apart cannot both sit on the same side of the stem, so the
--- upper of each such pair moves across it. This is the one thing that makes a
--- close-voiced chord readable rather than a blot.
-local function sides(heads)
-  local out = {}
-  local flip = false
-  for i, h in ipairs(heads) do
-    local prev = heads[i - 1]
-    if prev and math.abs(h.pos - prev.pos) == 1 and not flip then
-      flip = true
-    else
-      flip = false
-    end
-    out[i] = flip
-  end
-  return out
-end
-
 local function chord(pen, s, el, x, col, ground)
   local sp = s.sp
   local den, dotCount = el.value.den, el.value.dots or 0
-  local rx = (den <= 1) and WHOLE_RX or HEAD_RX
+  local rx = (den <= 1) and N.WHOLE_RX or N.HEAD_RX
   local stemUp = el.stem == "up"
-  local off = sides(el.heads)
 
   -- Ledger lines first, so the heads sit on top of them. The kit gets them
   -- too: a hi-hat is written above the staff and needs its line like anything
@@ -423,19 +402,20 @@ local function chord(pen, s, el, x, col, ground)
     end
   end
 
-  -- The accidentals, stacked leftwards so two of them never overlap.
-  local accX = x - rx * sp - 0.30 * sp
-  for i = #el.heads, 1, -1 do
-    local h = el.heads[i]
-    if h.acc and ACC[h.acc] then
-      local w = ACC_W[h.acc] * sp
-      ACC[h.acc](pen, accX - w / 2, s.y(h.pos), sp, col)
-      accX = accX - w
+  -- The accidentals go exactly where the layout put them. It knows which
+  -- heads were pushed across the stem and how many columns the accidentals
+  -- need; drawing them from a running offset here is what once put a sharp
+  -- underneath a notehead.
+  for _, h in ipairs(el.heads) do
+    if h.acc and h.accDX and ACC[h.acc] then
+      ACC[h.acc](pen, x + h.accDX * sp, s.y(h.pos), sp, col)
     end
   end
 
-  for i, h in ipairs(el.heads) do
-    local hx = x + (off[i] and (stemUp and 2 * rx * sp or -2 * rx * sp) or 0)
+  for _, h in ipairs(el.heads) do
+    -- Which side a crossed head goes is the layout's answer, not one worked
+    -- out again from the stem: see `el.sideDir` in sb_notate.lua.
+    local hx = x + ((h.side == 1) and (el.sideDir or 1) * 2 * rx * sp or 0)
     notehead(pen, hx, s.y(h.pos), sp, h.glyph or "normal", den, col, ground)
     if dotCount > 0 then dots(pen, s, hx + rx * sp, h.pos, dotCount, col) end
   end

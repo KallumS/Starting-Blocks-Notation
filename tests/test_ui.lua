@@ -813,5 +813,146 @@ do
   ok(imgui.textColours[STEP], "the step numbers are neutral, not an accent")
 end
 
+------------------------------------------------------------------------------
+-- The paper turns over
+------------------------------------------------------------------------------
+
+-- The page can be read black on white as well as white on black. Only the page
+-- turns over - the window keeps its own chrome either way - so what is checked
+-- is that the relationship between paper and music inverts while the theme
+-- underneath it does not.
+do
+  -- The same rough measure of lightness the colour checks above use.
+  local function lum(col)
+    local b = math.floor(col / 256) % 256
+    local g = math.floor(col / 65536) % 256
+    local r = math.floor(col / 16777216) % 256
+    return (r * 299 + g * 587 + b * 114) / 1000
+  end
+
+  -- The lightest and darkest things drawn on the page this frame.
+  local function tones()
+    local paper, music
+    for col in pairs(imgui.drawColours) do
+      if not paper or lum(col) < lum(paper) then paper = col end
+      if not music or lum(col) > lum(music) then music = col end
+    end
+    return paper, music
+  end
+
+  local function reload(setting)
+    extstate["StartingBlocksNotation:state"] = setting
+    deferred = nil
+    return pcall(dofile, SCRIPT)
+  end
+
+  ok(reload("light=0"), "the script loads with the dark page saved")
+  ok(frame(), "and draws it")
+  local darkLow, darkHigh = tones()
+  local chrome = imgui.windowBg
+  ok(darkLow and darkHigh and lum(darkHigh) > lum(darkLow) + 100,
+     "the dark page is light music on dark paper")
+  ok(lum(darkLow) < lum(chrome),
+     "and its paper is darker than the chrome it sits on")
+
+  -- Clicking the control turns the paper over, and the window is not a second
+  -- theme: whatever the page does, the chrome underneath is unchanged.
+  ok(clickLabel("Light page"), "the page can be turned over from the window")
+  ok(frame(), "and the next frame draws")
+  local litLow, litHigh = tones()
+  ok(litHigh and lum(litHigh) > lum(darkHigh) - 1,
+     "the light page's lightest tone is its paper")
+  ok(litLow and lum(litLow) < lum(darkLow) + 40,
+     "and its darkest is the music on it")
+  ok(lum(litHigh) - lum(litLow) > 100,
+     "the two are as far apart as they were, so it is still readable")
+  eq(imgui.windowBg, chrome,
+     "the window keeps its own colour when the paper turns over")
+
+  -- And the choice outlives the window.
+  reaper.atexitHandler()
+  ok(extstate["StartingBlocksNotation:state"]:match("light=1"),
+     "the page setting is written with the rest of the settings")
+  ok(reload("light=1"), "and a saved light page loads")
+  ok(frame(), "and draws")
+  local backLow, backHigh = tones()
+  ok(lum(backHigh) - lum(backLow) > 100, "as the light page it was")
+  ok(lum(backHigh) > lum(darkHigh) - 1, "and not as the dark one")
+
+  -- A saved setting from a version that never wrote one reads as the dark
+  -- page rather than as an error or a blank screen.
+  ok(reload("root=1;scale=1"), "settings with no page setting in them still load")
+  ok(frame(), "and draw")
+  local oldLow = tones()
+  ok(lum(oldLow) < lum(chrome), "and default to the dark page, as they always were")
+end
+
+------------------------------------------------------------------------------
+-- The accent, on both papers
+------------------------------------------------------------------------------
+
+-- The accent is spent on the one note an audition is inside. A saturated
+-- yellow is invisible on white, so the light page takes the same yellow shaded
+-- down rather than a fourth colour - and if that is ever dropped, a note being
+-- auditioned becomes unreadable on exactly the page that was added to make
+-- things readable.
+do
+  local ACCENT = 0xFFF200FF    -- the one yellow, as the window declares it
+  local function lum(col)
+    local b = math.floor(col / 256) % 256
+    local g = math.floor(col / 65536) % 256
+    local r = math.floor(col / 16777216) % 256
+    return (r * 299 + g * 587 + b * 114) / 1000
+  end
+
+  local function auditionOn(setting)
+    extstate["StartingBlocksNotation:state"] = setting
+    deferred = nil
+    if not pcall(dofile, SCRIPT) then return nil end
+    if not clickLabel("Audition") then return nil end
+    frame()
+    -- The brightest and dimmest things on the page, and everything drawn.
+    local paper
+    for col in pairs(imgui.drawColours) do
+      if not paper or lum(col) < lum(paper) then paper = col end
+    end
+    local lightest
+    for col in pairs(imgui.drawColours) do
+      if not lightest or lum(col) > lum(lightest) then lightest = col end
+    end
+    return imgui.drawColours, paper, lightest
+  end
+
+  local darkCols = auditionOn("light=0")
+  ok(darkCols ~= nil, "an audition starts on the dark page")
+  if darkCols then
+    ok(darkCols[ACCENT], "and the note it is inside takes the accent itself")
+  end
+
+  local litCols, litPaper = auditionOn("light=1")
+  ok(litCols ~= nil, "an audition starts on the light page too")
+  if litCols then
+    ok(not litCols[ACCENT],
+       "which does not use the raw yellow - it is invisible on white")
+    -- Whatever it does use has to be readable against the paper it is on.
+    local worst
+    for col in pairs(litCols) do
+      if col ~= litPaper and math.abs(lum(col) - lum(litPaper)) < 60 then
+        worst = col
+      end
+    end
+    ok(worst == nil,
+       "and everything drawn on the light page reads against it: " ..
+       (worst and ("%08x"):format(worst) or "none"))
+  end
+
+  -- Put it back so nothing after this inherits a light page or a running
+  -- preview.
+  extstate["StartingBlocksNotation:state"] = "light=0"
+  deferred = nil
+  pcall(dofile, SCRIPT)
+  frame()
+end
+
 io.write(("%d checks, %d failure%s\n"):format(checks, failures, failures == 1 and "" or "s"))
 os.exit(failures == 0 and 0 or 1)

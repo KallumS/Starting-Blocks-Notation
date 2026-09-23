@@ -170,6 +170,11 @@ already does, so the onsets are written on the beat and `shuffle 40` in the
 title carries the swing. The MIDI that leaves for REAPER is gated and shuffled
 exactly as it always was.
 
+**The page can be read black on white.** *Light page*, under the staff, turns
+the paper over and is remembered between sessions. Only the page turns over -
+the window keeps its own colours, because this is a sheet of paper laid on the
+desk rather than a second theme for the app.
+
 **An incomplete last bar is left incomplete.** A block can be two and a half
 bars long, and it is more honest to show the bar stopping where the block does
 than to fill it with rests that are not part of it.
@@ -214,16 +219,26 @@ or held over from earlier in the bar, whether a dot landed on a space: all
 assertions, none of them screenshots.
 
 Every suite here has been checked by deliberately breaking the thing it covers
-and watching it fail. Two real gaps were found that way and would not have been
-found otherwise: an accidental check that passed happily on a version marking
-*every* note, because a run rarely repeats a degree inside one bar; and a
+and watching it fail. Several real gaps were found that way and would not have
+been found otherwise: an accidental check that passed happily on a version
+marking *every* note, because a run rarely repeats a degree inside one bar; a
 notehead check that covered the whole note's hole and not the half note's,
-which are drawn by different branches.
+which are drawn by different branches; and a light-page check that reloaded a
+written setting rather than clicking the control, so it never went near the
+code that saves one.
+
+The suite was also blind to an entire shape of fault, which is worth knowing
+about: every drawing test asserted something about *one* glyph, and none
+asserted a relationship *between two glyphs of the same chord*. A sharp was
+drawn underneath its own notehead with every test passing. Almost every hard
+problem in engraving is of that shape - what has to clear what - and the
+accidental checks are written that way now.
 
 ## Seeing the page without REAPER
 
 ```
 lua5.4 tools/preview_page.lua > page.svg
+lua5.4 tools/preview_page.lua --light > page.svg
 ```
 
 `sb_draw.lua` draws through a pen, so standing a different pen in its place is
@@ -238,6 +253,10 @@ lua5.4 tools/preview.lua > preview.json
 
 is the original's widget recorder, still here and still recording every control
 the window asks for, panel by panel, plus the colours it drew the page in.
+
+`docs/decisions/` has one record per choice that could reasonably have gone the
+other way, and `docs/sessions/` has one log per working session - what went
+wrong on the way, which is the part `git log` cannot hold.
 
 ## Notes on the catalogue
 
