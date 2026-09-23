@@ -114,10 +114,6 @@ local STEP        = 0xBFC5CEFF
 -- ink, and the accent is spent on the single thing that is switched on: the
 -- note the playhead is inside while an audition runs. Yellow still means "this
 -- one, now" - there is simply one of it on the page rather than forty.
-local PAPER       = 0x111419FF
-local MUSIC       = 0xE8EBEFFF
-local STAFF_LINE  = 0x6E7683FF
-local PLAYING     = SELECTED
 local DIM         = 0x8A919CFF
 local WARN        = 0xD2483FFF
 
@@ -141,6 +137,27 @@ local function shade(col, amount)
   return mix(r) * 16777216 + mix(g) * 65536 + mix(b) * 256 + a
 end
 
+-- Two papers, because a page of music is the one thing in this window someone
+-- might reasonably want the other way round. Notation has been black on white
+-- for five hundred years, and a dark page is this app's house style rather
+-- than the natural state of the thing - so both are offered, and the choice is
+-- remembered.
+--
+-- Only the page turns over. The window keeps its own chrome either way: this
+-- is a sheet of paper laid on the desk, not a second theme for the app, and a
+-- light-grey control panel is not a thing anybody asked for.
+--
+-- The accent on white is the same yellow taken down by `shade` rather than a
+-- fourth colour, for the same reason the hover and held states are: a
+-- saturated yellow is invisible on white, and a new colour would be a change
+-- to a scheme that is settled.
+local PAGES = {
+  dark  = { paper = 0x111419FF, music = 0xE8EBEFFF, staff = 0x6E7683FF },
+  light = { paper = 0xF5F7FAFF, music = 0x14171CFF, staff = 0x99A2B0FF },
+}
+PAGES.dark.accent  = SELECTED
+PAGES.light.accent = shade(SELECTED, -0.42)
+
 -- ReaImGui patches Dear ImGui so a top-level window can carry its own
 -- background alpha, which a plain Dear ImGui window cannot. The same patch
 -- covers corner rounding, but rounding the window did not show on screen, so
@@ -155,6 +172,7 @@ local ui = {
   loop   = false,
   status = "",
   warn   = false,
+  light  = false,    -- the page, black on white rather than white on black
   block  = nil,      -- the last generated block
   key    = nil,      -- how to spell it, and in what signature
   doc    = nil,      -- the last engraved page
@@ -186,6 +204,12 @@ end
 -- Settings that outlive the window
 ------------------------------------------------------------------------------
 
+-- The window's own settings, as opposed to the block's. The engine owns `st`
+-- and clamps every field in it, and a preference about paper is nothing to do
+-- with the engine - so these live on `ui` and are saved beside the rest rather
+-- than smuggled into a table that would then have to clamp them.
+local VIEW = { "light" }
+
 local SAVED = { "root", "scale", "degree", "cat", "family", "dia", "chord",
                 "inv", "oct", "pattern", "runDir", "rate", "rateMod",
                 "octaves", "repeats", "bars", "gate", "chop", "shuffle",
@@ -195,6 +219,7 @@ local SAVED = { "root", "scale", "degree", "cat", "family", "dia", "chord",
 local function saveState()
   local out = {}
   for _, k in ipairs(SAVED) do out[#out + 1] = k .. "=" .. tostring(st[k]) end
+  for _, k in ipairs(VIEW) do out[#out + 1] = k .. "=" .. (ui[k] and "1" or "0") end
   reaper.SetExtState(SECTION, "state", table.concat(out, ";"), true)
 end
 
@@ -208,6 +233,12 @@ local function loadState()
   end
   for _, k in ipairs(SAVED) do
     if got[k] then st[k] = tonumber(got[k]) or got[k] end
+  end
+  -- A window setting is a plain flag and needs no clamping: anything that is
+  -- not the string this app wrote is false, which is also what a version that
+  -- never wrote it should read as.
+  for _, k in ipairs(VIEW) do
+    if got[k] ~= nil then ui[k] = (got[k] == "1") end
   end
   -- A saved setting may name something that no longer exists, or a degree the
   -- scale does not have, or a value past the end of the slider that shows it.
@@ -377,7 +408,8 @@ local function notation(block, width)
   local doc    = block and ui.doc or nil
   local height = doc and Draw.height(doc, SPACE) or (6 * SPACE)
   ImGui.InvisibleButton(ctx, "##page", width, height)
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, PAPER, 3)
+  local page = PAGES[ui.light and "light" or "dark"]
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, page.paper, 3)
   if not doc then return end
 
   -- While an audition runs, the note it is inside takes the accent. There is
@@ -389,7 +421,8 @@ local function notation(block, width)
   end
 
   Draw.page(penFor(dl), doc, x + 1.4 * SPACE, y, SPACE,
-            { ink = MUSIC, staff = STAFF_LINE, ground = PAPER, accent = PLAYING },
+            { ink = page.music, staff = page.staff,
+              ground = page.paper, accent = page.accent },
             { highlight = Place.previewRunning() and playing or nil })
 end
 
@@ -707,7 +740,14 @@ local function drawActions()
     local note = ("%d notes  /  %.2f beats"):format(#block.notes, block.beats)
     if block.truncated then note = note .. "   (buffer full - shorten the block)" end
     dim(note)
+    ImGui.SameLine(ctx, 0, 16)
   end
+
+  -- The paper, on the line under the page it turns over. It takes the accent
+  -- when it is on, like every other switched-on thing in the window.
+  if pick("Light page", ui.light, 96) then ui.light = not ui.light end
+  tip("Black on white, the way it would be printed. The page only - " ..
+      "the window keeps its own colours.")
 
   ImGui.Dummy(ctx, 0, 2)
 

@@ -88,6 +88,12 @@ local SHEET = {
   { "A triad, a whole bar", function(s) end },
   { "The same chord chopped into eighths",
     function(s) s.chop = RATE("1/8") end },
+  { "A six-nine chord: two sharps and a crossed head",
+    function(s) s.degree = 5; s.family = byName(E.FAMILIES, "Extended")
+                s.chord = 9 end },
+  { "The same, struck in quarters so it has a stem",
+    function(s) s.degree = 5; s.family = byName(E.FAMILIES, "Extended")
+                s.chord = 9; s.chop = RATE("1/4") end },
   { "A thirteenth, which needs both staves",
     function(s) s.family = 5; s.chord = 30; s.oct = -1 end },
   { "An arpeggio in eighths",
@@ -135,15 +141,21 @@ local SHEET = {
 
 local SP      = 10
 local WIDTH   = 760
-local INK     = 0xE8EBEFFF
-local STAFFC  = 0x9AA2AEFF
-local GROUND  = 0x151A20FF
-local ACCENT  = 0xFFF200FF
-local LABEL   = 0x8A919CFF
+
+-- The same two papers the window offers. Pass --light to draw the printed one.
+local LIGHT   = false
+local picked  = {}
+for i = 1, #arg do
+  if arg[i] == "--light" then LIGHT = true else picked[arg[i]] = true end
+end
+
+local INK     = LIGHT and 0x14171CFF or 0xE8EBEFFF
+local STAFFC  = LIGHT and 0x99A2B0FF or 0x9AA2AEFF
+local GROUND  = LIGHT and 0xF5F7FAFF or 0x151A20FF
+local ACCENT  = LIGHT and 0xA69A00FF or 0xFFF200FF
+local LABEL   = LIGHT and 0x555C66FF or 0x8A919CFF
 
 local out, y = {}, 24
-local picked = {}
-for i = 1, #arg do picked[arg[i]] = true end
 
 for _, entry in ipairs(SHEET) do
   local label, mut = entry[1], entry[2]
@@ -160,8 +172,8 @@ for _, entry in ipairs(SHEET) do
       grid = N.gridFor(E, st), width = (WIDTH - 70) / SP,
     })
 
-    out[#out + 1] = ('<text x="20" y="%.1f" fill="#8a919c" font-family="Helvetica,Arial" ' ..
-      'font-size="11">%s &#183; %s</text>'):format(y, label,
+    out[#out + 1] = ('<text x="20" y="%.1f" fill="LABELCOL" font-family="Helvetica,Arial" ' ..
+      'font-size="11" fill-opacity="1">%s &#183; %s</text>'):format(y, label,
       (block.name:gsub("&", "&amp;")))
     y = y + 10
 
@@ -174,6 +186,9 @@ end
 
 local H = math.ceil(y)
 local head = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" ' ..
-  'viewBox="0 0 %d %d"><rect width="100%%" height="100%%" fill="#151a20"/>')
+  'viewBox="0 0 %d %d"><rect width="100%%" height="100%%" fill="PAGECOL"/>')
   :format(WIDTH, H, WIDTH, H)
-print(head .. table.concat(out, "\n") .. "</svg>")
+local body = (head .. table.concat(out, "\n") .. "</svg>")
+  :gsub("PAGECOL", LIGHT and "#f5f7fa" or "#151a20")
+  :gsub("LABELCOL", LIGHT and "#555c66" or "#8a919c")
+print(body)
