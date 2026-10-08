@@ -208,7 +208,7 @@ end
 -- The page is drawn with four calls rather than two. Each one checks its own
 -- arguments, because a coordinate that has gone nil or a colour that has gone
 -- nowhere is exactly the kind of thing REAPER reports as a bare stack trace.
-function ImGui.DrawList_AddConvexPolyFilled(_, pts, col)
+function ImGui.DrawList_AddConcavePolyFilled(_, pts, col)
   imgui.drawCalls = imgui.drawCalls + 1
   if type(col) ~= "number" then error("polygon colour is a " .. type(col)) end
   local n = (type(pts) == "table") and #pts or (pts and pts.n) or 0

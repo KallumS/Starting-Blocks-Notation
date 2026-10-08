@@ -18,6 +18,7 @@ local E = dofile(HERE .. "../reascripts/sb_engine.lua")
 local N = dofile(HERE .. "../reascripts/sb_notate.lua")
 local D = dofile(HERE .. "../reascripts/sb_draw.lua")
 D.setNotate(N)
+D.setGlyphs(dofile(HERE .. "../reascripts/sb_glyphs.lua"))
 
 ------------------------------------------------------------------------------
 -- An SVG pen

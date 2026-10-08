@@ -40,6 +40,7 @@ person who finds it inconvenient.
 | `reascripts/sb_engine.lua` | The music. **No `reaper.` and no `ImGui.` in this file, ever.** |
 | `reascripts/sb_notate.lua` | The engraver: a block in, a page out. Pure, and no drawing in it. |
 | `reascripts/sb_draw.lua` | The ink. Draws through a pen, so **no `ImGui.` in this file either.** |
+| `reascripts/sb_glyphs.lua` | Bravura's symbols as polygons. **Generated** by `tools/bake_glyphs.py`; never hand-edited. |
 | `reascripts/sb_midi.lua` | The MIDI file writer. Pure. |
 | `reascripts/sb_place.lua` | Everything that touches REAPER. |
 
@@ -63,20 +64,64 @@ whole engraver. If a drawing question needs ImGui, the answer is another pen
 call, not an import.
 
 **The pen is four calls and adding a fifth costs three implementations**, so
-the bar for one is high. Curves are sampled into short `line` segments by
+the bar for one is high. Curves are sampled into short straight pieces by
 `sb_draw.lua` itself rather than being a pen call, and that is the answer
 almost every time a glyph seems to need something new:
 
 ```lua
 pen.line(x1, y1, x2, y2, col, thickness)
-pen.poly(pts, col)                    -- pts is flat {x1,y1,x2,y2,...}, convex
+pen.poly(pts, col)                    -- pts is flat {x1,y1,x2,y2,...}: simple, clockwise
 pen.circle(x, y, r, col, filled)      -- filled false means stroked
 pen.text(x, y, col, str, size, center)  -- y is the middle, not the baseline
 ```
 
-`poly` must be **convex**: the ellipses and beams are, and a glyph that wants a
-concave shape wants two polygons. Colours are `0xRRGGBBAA` throughout, as
-everywhere else in the window.
+`poly` takes any **simple** polygon - concave is fine, crossing itself and
+holes are not - **wound clockwise on screen** (0013). Clockwise because
+ReaImGui anti-aliases a fill by pushing a soft fringe *outward*, and it decides
+which way is out from the winding: anticlockwise, the fringe eats into the
+shape. `sb_draw.lua`'s `fill()` turns any shape it builds clockwise before it
+reaches the pen; the baked glyphs are clockwise already. `test_draw.lua`
+asserts both properties for every polygon on a spread of pages, because
+neither one shows in a test that only counts shapes. Colours are `0xRRGGBBAA`
+throughout, as everywhere else in the window.
+
+## The symbols are Bravura's
+
+Clefs, noteheads, flags, rests, accidentals, the time signature's figures, the
+tuplet's figure and the brace are **Bravura**, the SMuFL reference font -
+the same symbols Noterator sets - baked into `sb_glyphs.lua` as polygons
+(0013). Nothing is loaded at run time and nothing has to be installed, which
+was the whole objection to a font (0004). The lines - staff, stems, beams,
+ledgers, bar lines, ties - are drawn in `sb_draw.lua` to Bravura's own
+engraving defaults (stem 0.12, staff line 0.13, beam 0.5, ledger 0.16 and 0.4
+past the head), so the two kinds of ink are weighted to sit together.
+
+- **Regenerate, never edit.** `python3 tools/bake_glyphs.py Bravura.otf >
+  reascripts/sb_glyphs.lua` (needs `fonttools` and `shapely`). A new symbol is
+  a row in its `GLYPHS` list. The font file is not in the repository; it is in
+  Noterator's `Resources/Fonts/` or Bravura's own `redist/otf/`.
+- **A glyph with a hole is cut into pieces that overlap.** ReaImGui cannot
+  fill a polygon with a hole, so the bake cuts through each one. Cut flush,
+  two anti-aliased edges meet in a faint seam; overlapping by a tenth of a
+  space, each piece's solid middle covers the other's soft edge.
+- **The open noteheads are the exception.** They keep `outer` and `holes`
+  apart, and the page fills the head and punches the counter with the paper,
+  because the counter of an open head is opaque here (the staff line stops at
+  its edge). `test_draw.lua` counts the punches.
+- **It is licensed.** Bravura is under the SIL Open Font License and so is
+  anything derived from it: `sb_glyphs.lua` carries the notice and
+  `sb_glyphs-OFL.txt` ships beside it. The licence covers those two files and
+  nothing else in the script. Do not name the baked data "Bravura" - that is a
+  Reserved Font Name - but saying where it came from is fine and is done.
+- **The layout's widths follow the glyphs.** `N.HEAD_RX` and `N.WHOLE_RX` are
+  half Bravura's head widths, `N.ACC_WIDTHS` its accidentals plus air,
+  `N.ACC_CLEAR` is a seventh because its sharp is nearly 2.8 spaces tall, and
+  `N.timeWidth` makes room for two figures. Re-bake a glyph that changes size
+  and those numbers have to follow it.
+- **The window's pen is the same pen** whichever ink it is drawing: the
+  glyphs are only `poly` calls, so the window, the test recorder and the SVG
+  preview needed nothing new for them. Loaders hand the module its data with
+  `Draw.setGlyphs(dofile(... "sb_glyphs.lua"))`, beside `setNotate`.
 
 ## What this thing is for
 
@@ -218,15 +263,18 @@ shrinks `E.MAX_NOTES` to test it rather than pretending some setting reaches it.
 **The window's pen is where ReaImGui's awkwardness is kept**, so that none of
 it reaches `sb_draw.lua`. Three things live there and nowhere else:
 
-- `DrawList_AddConvexPolyFilled` wants a **`reaper.array`**, not a table, so
-  the pen wraps every polygon in `reaper.new_array(pts)`. The mocks hand the
-  table straight back, which is enough for them to count its coordinates.
+- Polygons go through **`DrawList_AddConcavePolyFilled`**, which takes any
+  simple polygon and is in every ReaImGui that speaks the 0.9 API the script
+  already asks for. It wants a **`reaper.array`**, not a table, so the pen
+  wraps every polygon in `reaper.new_array(pts)`. The mocks hand the table
+  straight back, which is enough for them to count its coordinates.
 - Sizing text needs **`DrawList_AddTextEx`**, which older ReaImGui builds do
   not have. It is feature-detected once through a **`pcall`**, not by reading
   the key: the test mock's `__index` raises on anything it does not have, so a
   bare `if ImGui.DrawList_AddTextEx` would be a failure rather than a false.
-  Without it the figures fall back to the window's own font size, which is the
-  only part of the page that is set rather than drawn (0004).
+  Nothing on the page uses `text` any more - the figures are Bravura's now
+  (0013) - but the pen keeps the call, so a label on the page later costs
+  nothing new.
 - The font that sizing needs is created and attached **once, in `main()`**,
   after `CreateContext`. Attaching per frame leaks.
 
@@ -545,7 +593,7 @@ iterating on one glyph bearable.
 **This app is Starting Blocks with the roll replaced** (0001). The engine, the
 MIDI writer and `sb_place.lua` came across unchanged and should stay that way,
 so a fix upstream is a copy rather than a merge. Everything new is
-`sb_notate.lua`, `sb_draw.lua`, their two suites and `tools/preview_page.lua`.
+`sb_notate.lua`, `sb_draw.lua`, `sb_glyphs.lua` and its bake tool, their two suites and `tools/preview_page.lua`.
 
 What follows is that app's own history, carried over because it still explains
 why the engine looks the way it does.

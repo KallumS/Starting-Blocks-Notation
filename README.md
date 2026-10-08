@@ -25,6 +25,8 @@ you read a block, not what you get.
 | `reascripts/sb_engine.lua` | The music: keys, scales, chords, generators. No REAPER in it. |
 | `reascripts/sb_notate.lua` | The engraver. A block in, a page out. No drawing in it. |
 | `reascripts/sb_draw.lua` | The ink: clefs, noteheads, stems, beams, rests. |
+| `reascripts/sb_glyphs.lua` | The music symbols - Bravura's, built in, so there is no font to install. |
+| `reascripts/sb_glyphs-OFL.txt` | Bravura's licence, which travels with them. |
 | `reascripts/sb_midi.lua` | Writing a block out as a standard MIDI file. |
 | `reascripts/sb_place.lua` | Everything that touches REAPER: inserting, exporting, auditioning. |
 | `docs/BLOCKS.md` | Every block it can make. Generated from the engine. |
@@ -49,10 +51,10 @@ If you have no ReaPack, get it from [reapack.com](https://reapack.com), put the
 file it gives you in `UserPlugins` inside the resource path below, restart, and
 then do the above.
 
-**2. Put all six files in one folder under Scripts.**
+**2. Put all eight files in one folder under Scripts.**
 
 Options -> Show REAPER resource path in explorer/finder, then into `Scripts/`.
-Make a folder and put these six in it together:
+Make a folder and put these eight in it together:
 
 ```
 Scripts/Starting Blocks Notation/
@@ -60,12 +62,14 @@ Scripts/Starting Blocks Notation/
   sb_engine.lua
   sb_notate.lua
   sb_draw.lua
+  sb_glyphs.lua
+  sb_glyphs-OFL.txt
   sb_midi.lua
   sb_place.lua
 ```
 
 They have to be in the same folder. `Starting Blocks Notation.lua` loads the
-other five from wherever it is itself, so splitting them up stops it working.
+others from wherever it is itself, so splitting them up stops it working.
 
 The resource path is `%APPDATA%\REAPER` on Windows,
 `~/Library/Application Support/REAPER` on macOS and `~/.config/REAPER` on Linux.
@@ -84,14 +88,11 @@ too.
 not been restarted since it was.
 
 **It errors on the line that loads ReaImGui.** Your ReaImGui is older than the
-version the script asks for. Either update it, or change `dofile(imgui_path)("0.9")`
-near the top of `Starting Blocks Notation.lua` to the version you have.
+version the script asks for. Update it through ReaPack. (Asking for an older
+version instead no longer works: the page is filled with a call that arrived
+in ReaImGui 0.9.)
 
-**It cannot find `sb_engine.lua`.** The six files are not in the same folder.
-
-**The time signature is the wrong size.** Your ReaImGui has no
-`DrawList_AddTextEx`, so the figures fall back to the window's own font size.
-Everything else on the page is drawn rather than set, so nothing else changes.
+**It cannot find `sb_engine.lua` (or `sb_glyphs.lua`).** The eight files are not in the same folder.
 
 **Audition makes no sound.** It plays through REAPER's virtual MIDI keyboard,
 so it needs a track that is record-armed with input monitoring on, holding an
@@ -290,6 +291,11 @@ flat and natural (Sec. 8-9), dots (Sec. 11), accidentals lasting to the bar
 (Sec. 24) and across a tie (Sec. 25), altered degrees (Sec. 26), and the whole
 rest as a measure rest (Sec. 33).
 
-The glyphs are drawn rather than set in a music font, because a REAPER user has
-no reason to have one installed and an app that looks wrong on someone else's
-machine is worse than one that draws its own.
+The symbols - clefs, noteheads, flags, rests, accidentals, figures - are
+[Bravura](https://github.com/steinbergmedia/bravura)'s, the reference music
+font for SMuFL, and the same ones Noterator uses. They are built into the
+script as shapes rather than loaded as a font, so there is nothing to install:
+a REAPER user has no reason to have a music font, and an app that looks wrong
+on someone else's machine is worse than one that carries its own ink.
+Bravura is copyright Steinberg Media Technologies GmbH and is used under the
+SIL Open Font License, whose text is in `reascripts/sb_glyphs-OFL.txt`.

@@ -19,6 +19,7 @@ local E = dofile(HERE .. "/../reascripts/sb_engine.lua")
 local N = dofile(HERE .. "/../reascripts/sb_notate.lua")
 local D = dofile(HERE .. "/../reascripts/sb_draw.lua")
 D.setNotate(N)
+D.setGlyphs(dofile(HERE .. "/../reascripts/sb_glyphs.lua"))
 
 local failures, checks = 0, 0
 local function ok(cond, what)
@@ -219,6 +220,11 @@ do
         s.lengthMode = "Bars"; s.bars = BARS("1") end },
     { "the kit above the staff", function(s)
         s.cat = "Drums"; s.drumPiece = 5; s.drumRate = "1/8" end },
+    -- Nothing here leaves the staff, so the furthest ink is the G clef's,
+    -- which rises a space and a half over the top line and hangs a space and
+    -- a half under the bottom one whatever the notes do.
+    { "one note inside the staff, under the clef", function(s)
+        s.cat = "Melody"; s.interval = 8; s.degree = 4; s.baseOct = 5 end },
     { "four bars wrapped onto several systems", function(s)
         s.cat = "Run"; s.rate = RATE("1/8")
         s.lengthMode = "Bars"; s.bars = BARS("4") end },
@@ -250,10 +256,14 @@ do
   local r, doc = draw(st)
   local s = firstStaff(doc)
   eq(doc.staves[1].clef, "treble", "a sustained tonic is on a treble staff")
+  -- The noteheads are the wide filled shapes inside the bar; the clef and the
+  -- time signature in front of it are filled shapes too, and are skipped.
+  local barStart = X0 + doc.headWidth * SP
   local head
   for _, p in ipairs(r.polys) do
-    -- The noteheads are the wide filled shapes; the staff is lines.
-    if p.x2 - p.x1 > SP * 0.8 and p.y2 - p.y1 > SP * 0.6 then head = head or p end
+    if p.x1 > barStart and p.x2 - p.x1 > SP * 0.8 and p.y2 - p.y1 > SP * 0.6 then
+      head = head or p
+    end
   end
   ok(head ~= nil, "a notehead was drawn")
   if head then
@@ -269,12 +279,13 @@ do
     local st = state(mut)
     local r, doc = draw(st)
     -- A ledger line is horizontal, and it is the one horizontal mark that is
-    -- about two spaces long: the staff's own lines run the width of the
-    -- system, and the clef is drawn from strokes far shorter than this.
+    -- about two spaces long - a whole note's, with Bravura's extension either
+    -- side, is nearer two and a half: the staff's own lines run the width of
+    -- the system, and the clef is filled shapes rather than lines.
     local n = 0
     for _, l in ipairs(r.lines) do
       local w = math.abs(l.x2 - l.x1)
-      if math.abs(l.y1 - l.y2) < 0.01 and w > 1.4 * SP and w < 2.2 * SP then
+      if math.abs(l.y1 - l.y2) < 0.01 and w > 1.4 * SP and w < 2.8 * SP then
         n = n + 1
       end
     end
@@ -354,6 +365,10 @@ end
 
 -- A beamed note has no hook of its own, and an unbeamed short one does. The
 -- hook is always on the right of the stem, whichever way the stem turns.
+-- The hook is Bravura's flag, a filled shape hung from the stem's tip: what
+-- is asserted is a shape that starts at the stem, reaches well out to the
+-- right of it, and lies along the stem from the tip inward. A line will not
+-- do - this test once counted the next note's ledger line as a hook.
 do
   local st = state(function(s)
     s.cat = "Arpeggio"; s.rate = RATE("1/8"); s.lengthMode = "Repeats"; s.repeats = 1
@@ -365,8 +380,14 @@ do
       if el.kind == "chord" and N.hooks(el.value) > 0 and not el.beam then
         flagged = flagged + 1
         local right = 0
-        for _, l in ipairs(r.lines) do
-          if l.x1 > el.stemX - 0.1 and math.abs(l.y1 - el.stemTip) < 2 * SP then
+        local inward = (el.stem == "up") and 1 or -1
+        for _, p in ipairs(r.polys) do
+          local tipEnd = (el.stem == "up") and p.y1 or p.y2
+          local farEnd = (el.stem == "up") and p.y2 or p.y1
+          if p.x1 > el.stemX - 0.1 * SP and p.x1 < el.stemX + 0.1 * SP
+             and p.x2 > el.stemX + 0.6 * SP
+             and math.abs(tipEnd - el.stemTip) < 0.3 * SP
+             and (farEnd - el.stemTip) * inward > 2 * SP then
             right = right + 1
           end
         end
@@ -454,9 +475,12 @@ do
   local r = recorder()
   D.page(r.pen, doc, X0, Y0, SP, COLS)
   local s = firstStaff(doc)
+  local barStart = X0 + doc.headWidth * SP
   local rect
   for _, p in ipairs(r.polys) do
-    if p.x2 - p.x1 > 0.8 * SP and p.y2 - p.y1 < 0.8 * SP then rect = rect or p end
+    if p.x1 > barStart and p.x2 - p.x1 > 0.8 * SP and p.y2 - p.y1 < 0.8 * SP then
+      rect = rect or p
+    end
   end
   ok(rect ~= nil, "a measure rest was drawn")
   if rect then
@@ -590,6 +614,121 @@ do
     if p.col == GROUND then holes = holes + 1 end
   end
   eq(holes, 0, "and a filled notehead is not punched at all")
+end
+
+------------------------------------------------------------------------------
+-- Ties
+------------------------------------------------------------------------------
+
+-- A tie is a filled crescent: much wider than it is tall, and lying between
+-- two heads rather than on one. Every note of a tied chord is tied, and a tie
+-- that crosses a bar line reaches the chord it holds into rather than
+-- stopping at the line.
+do
+  local st = state(function(s) s.chop = RATE("1/4"); s.rateMod = 3; s.bars = BARS("2") end)
+  local r, doc = draw(st)
+  local m1 = doc.measures[1].staves[1].elements
+  local m2 = doc.measures[2].staves[1].elements
+  local last, first = m1[#m1], m2[1]
+  ok(last.tieOut, "the block ties its last chord into the next bar")
+  local barStart = X0 + doc.headWidth * SP
+  local ties = 0
+  for _, p in ipairs(r.polys) do
+    if p.x1 > barStart and p.x2 - p.x1 > 1.2 * SP and p.y2 - p.y1 < 1.2 * SP
+       and p.x1 > last.screenX and p.x2 < first.screenX
+       and p.x2 > first.screenX - 1.5 * SP then
+      ties = ties + 1
+    end
+  end
+  eq(ties, #last.heads, "each note of the chord is tied across the bar line, to the next chord")
+end
+
+------------------------------------------------------------------------------
+-- What the pen is handed
+------------------------------------------------------------------------------
+
+-- Every polygon is simple and turns clockwise on the screen. ReaImGui fills a
+-- concave polygon happily but not one that crosses itself, and it pushes its
+-- anti-aliasing fringe outward by the winding: an anticlockwise shape has its
+-- edge eaten into instead. Neither shows in a test that only counts shapes,
+-- so it is asserted for every polygon on a page that has a bit of everything.
+do
+  local function crosses(ax, ay, bx, by, cx, cy, dx, dy)
+    local function side(px, py, qx, qy, rx, ry)
+      return (qx - px) * (ry - py) - (qy - py) * (rx - px)
+    end
+    local d1, d2 = side(cx, cy, dx, dy, ax, ay), side(cx, cy, dx, dy, bx, by)
+    local d3, d4 = side(ax, ay, bx, by, cx, cy), side(ax, ay, bx, by, dx, dy)
+    return ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0))
+       and ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0))
+  end
+  local wound, simple, seen = true, true, 0
+  local function check(pts, what)
+    seen = seen + 1
+    local n, a = #pts, 0
+    for i = 1, n - 1, 2 do
+      local j = (i + 2 > n) and 1 or i + 2
+      a = a + pts[i] * pts[j + 1] - pts[j] * pts[i + 1]
+    end
+    if a <= 0 and wound then wound = what end
+    local k = n / 2
+    for i = 0, k - 1 do
+      for j = i + 2, k - 1 do
+        if not (i == 0 and j == k - 1) then
+          local i2, j2 = (i + 1) % k, (j + 1) % k
+          if crosses(pts[2 * i + 1], pts[2 * i + 2], pts[2 * i2 + 1], pts[2 * i2 + 2],
+                     pts[2 * j + 1], pts[2 * j + 2], pts[2 * j2 + 1], pts[2 * j2 + 2]) then
+            if simple == true then simple = what end
+          end
+        end
+      end
+    end
+  end
+  local cases = {
+    { "sixteenths", function(s) s.cat = "Run"; s.rate = RATE("1/16"); s.lengthMode = "Bars" end },
+    { "tied dotted chords", function(s) s.chop = RATE("1/4"); s.rateMod = 3; s.bars = BARS("2") end },
+    { "a thirteenth", function(s) s.family = 5; s.chord = 30; s.oct = -1 end },
+    { "triplets", function(s) s.cat = "Arpeggio"; s.rate = RATE("1/4"); s.rateMod = 2 end },
+    { "six sharps", function(s) s.root = ROOT("F#"); s.cat = "Run"; s.rate = RATE("1/8") end },
+    { "the diminished scale", function(s) s.scale = SCL("Dim W-H"); s.cat = "Run"; s.rate = RATE("1/8") end },
+    { "the kit", function(s) s.cat = "Drums"; s.drumPiece = 3; s.drumRate = "1/8" end },
+  }
+  for _, case in ipairs(cases) do
+    local doc = layout(state(case[2]))
+    local pen = recorder().pen
+    pen.poly = function(pts) check(pts, case[1]) end
+    D.page(pen, doc, X0, Y0, SP, COLS)
+  end
+  ok(seen > 100, "the pages handed the pen a real number of polygons (" .. seen .. ")")
+  ok(wound == true, "every polygon is clockwise on screen: not in " .. tostring(wound))
+  ok(simple == true, "and none of them crosses itself: one did in " .. tostring(simple))
+end
+
+-- The baked glyphs promise the same of themselves, checked at the source so a
+-- bad bake shows up as the glyph it broke rather than as a page.
+do
+  local G = dofile(HERE .. "/../reascripts/sb_glyphs.lua")
+  local bad
+  for name, g in pairs(G) do
+    for _, list in ipairs({ g.fill, g.outer or {}, g.holes or {} }) do
+      for _, ring in ipairs(list) do
+        local a, n = 0, #ring
+        for i = 1, n - 1, 2 do
+          local j = (i + 2 > n) and 1 or i + 2
+          a = a + ring[i] * ring[j + 1] - ring[j] * ring[i + 1]
+        end
+        if n < 6 or a <= 0 then bad = bad or name end
+      end
+    end
+  end
+  ok(bad == nil, "every baked glyph is wound clockwise on screen: not " .. tostring(bad))
+  for _, want in ipairs({ "gClef", "fClef", "noteheadBlack", "noteheadHalf", "noteheadWhole",
+                          "accidentalSharp", "accidentalFlat", "accidentalNatural",
+                          "restQuarter", "flag8thUp", "timeSig4", "tuplet3", "brace" }) do
+    ok(G[want] and #G[want].fill > 0, "the glyph " .. want .. " was baked")
+  end
+  ok(G.noteheadHalf.holes and #G.noteheadHalf.holes == 1,
+     "and an open head keeps its counter apart, for the page to punch")
 end
 
 ------------------------------------------------------------------------------

@@ -22,6 +22,8 @@
  *   sb_place.lua
  *   sb_notate.lua
  *   sb_draw.lua
+ *   sb_glyphs.lua
+ *   sb_glyphs-OFL.txt
 --]]
 
 local TITLE   = "Starting Blocks Notation"
@@ -49,6 +51,7 @@ local Notate = dofile(HERE .. "sb_notate.lua")
 local Draw   = dofile(HERE .. "sb_draw.lua")
 Place.setMidi(Midi)
 Draw.setNotate(Notate)
+Draw.setGlyphs(dofile(HERE .. "sb_glyphs.lua"))
 
 ------------------------------------------------------------------------------
 -- Look
@@ -355,8 +358,10 @@ local function penFor(dl)
     line = function(x1, y1, x2, y2, col, th)
       ImGui.DrawList_AddLine(dl, x1, y1, x2, y2, col, th or 1)
     end,
+    -- Any simple polygon, concave or not: Bravura's outlines are not convex,
+    -- and the concave fill is in every ReaImGui that speaks the 0.9 API.
     poly = function(pts, col)
-      ImGui.DrawList_AddConvexPolyFilled(dl, reaper.new_array(pts), col)
+      ImGui.DrawList_AddConcavePolyFilled(dl, reaper.new_array(pts), col)
     end,
     circle = function(x, y, r, col, filled)
       if filled then

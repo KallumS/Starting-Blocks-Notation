@@ -949,6 +949,40 @@ do
 end
 
 ------------------------------------------------------------------------------
+-- Room for a flag
+------------------------------------------------------------------------------
+
+-- A flag on an upward stem hangs out to the right, over where the next note
+-- would sit at the ordinary spacing. Every flagged note in a sweep of the
+-- blocks most likely to have them keeps its neighbour at least FLAG_GAP off,
+-- and the dotted quarters tied across a bar - which put an eighth in front
+-- of a chord - are the case that must have one to check.
+do
+  local checked, short = 0, nil
+  local cases = {
+    function(s) s.chop = RATE("1/4"); s.rateMod = 3; s.bars = BARS("2") end,
+    function(s) s.chop = RATE("1/8"); s.rateMod = 3; s.bars = BARS("2") end,
+    function(s) s.cat = "Arpeggio"; s.rate = RATE("1/8"); s.lengthMode = "Repeats"; s.repeats = 1 end,
+  }
+  for _, mut in ipairs(cases) do
+    local doc = lay(state(mut))
+    for _, m in ipairs(doc.measures) do
+      local els = elements(m)
+      for i, el in ipairs(els) do
+        local nxt = els[i + 1]
+        if nxt and nxt.at > el.at and el.kind == "chord" and el.stem == "up"
+           and not el.beam and N.hooks(el.value) > 0 then
+          checked = checked + 1
+          if nxt.x - el.x < N.FLAG_GAP - 1e-9 then short = short or (nxt.x - el.x) end
+        end
+      end
+    end
+  end
+  ok(checked > 0, "the sweep found flagged notes with a neighbour (" .. checked .. ")")
+  ok(short == nil, "and every one keeps it a flag's width off: " .. tostring(short))
+end
+
+------------------------------------------------------------------------------
 
 io.write(("%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

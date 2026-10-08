@@ -1,7 +1,9 @@
 # 0004 - Draw the glyphs rather than depend on a music font
 
 - **Date:** 2026-09-22
-- **Status:** Accepted
+- **Status:** Superseded in part by [0013](0013-bake-bravura-into-the-script.md):
+  the reason below still holds, but the symbols are now Bravura's outlines
+  baked into the script as data rather than drawn by hand
 
 ## Context
 
