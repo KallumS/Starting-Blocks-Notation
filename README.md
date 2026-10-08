@@ -1,7 +1,7 @@
 # Starting Blocks Notation
 
 A catalogue of the smallest useful pieces of music - chords, arpeggios, runs,
-melodic steps, leaps and held notes, bass notes, single drum hits - that you
+melodic steps, leaps and held notes - that you
 pick by key, scale and scale degree, **read as notation**, and then drop into a
 REAPER project.
 
@@ -106,18 +106,18 @@ builds on that degree, so the vii of major reads `vii°` and the III of natural
 minor reads `III`.
 
 Then pick what kind of block you want - **Chord**, **Arpeggio**, **Run**,
-**Melody**, **Bass**, **Drums** - and only that block's options are on screen.
-The staff underneath is whatever you have currently built.
+**Melody** - and only that block's options are on screen. The staff
+underneath is whatever you have currently built.
 
-Arpeggios and bass notes read the chord you set in the Chord tab, so there is
-one chord picker rather than three.
+Arpeggios read the chord you set in the Chord tab, so there is one chord picker
+rather than two.
 
-Chords, bass and drums are measured in **bars**, from a quarter of one up to
-eight - a single chord stab is a quarter-bar chord. Arpeggios and runs are
-measured either the same way or in **repeats**, and you pick which: one repeat
-is one pass of whatever the direction produced, so the block comes out as long
-as the arpeggio and no longer, while a bar length cycles the pass and cuts it
-at the bar line. A melody is however long its own notes make it.
+Chords are measured in **bars**, from a quarter of one up to eight - a single
+chord stab is a quarter-bar chord. Arpeggios and runs are measured either the
+same way or in **repeats**, and you pick which: one repeat is one pass of
+whatever the direction produced, so the block comes out as long as the
+arpeggio and no longer, while a bar length cycles the pass and cuts it at the
+bar line. A melody is however long its own notes make it.
 
 A melody can also **sustain**: one note, held for the rate, which is the
 smallest melodic thing there is. It has nothing to point in a direction and no
@@ -126,14 +126,12 @@ same degree you chose in step 2, offered again where it is the only thing left
 to decide.
 
 A chord can be **chopped** into segments and struck again in each one, from
-1/64 up to 1/1. The drums have no named patterns: a kick every 1/4 is four on
-the floor, a kick every 1/2 is one and three, a snare every 1/2 is the
-backbeat, and each piece has a **shuffle** that pushes every second hit later.
+1/64 up to 1/1.
 
 Every block can be **straight, triplet or dotted**, and starts straight. It is
 one setting shown on every panel, and it applies to whatever that panel reads
-as a rate: the chord's chop, the spacing of a drum, the step an arpeggio walks
-in. A block that is not straight says so in its name.
+as a rate: the chord's chop, the step an arpeggio walks in. A block that is not
+straight says so in its name.
 
 Everything leaves at velocity 100. Shaping a block's dynamics is a job for the
 MIDI editor once it is in the project, not for a slider on every panel here.
@@ -156,19 +154,13 @@ signature that leaves the fewest accidentals on the page.
 **Which staff you get depends on the block.** A block that stays above middle C
 is written on a treble staff, one that stays below it on a bass staff, and one
 that straddles it on both, braced together. The choice is made once for the
-whole block, so a run never hops staves in the middle of itself. The kit is
-written on a percussion staff under the neutral clef, with the cymbals on
-crossed noteheads.
+whole block, so a run never hops staves in the middle of itself.
 
-**What you read is not literally what you hear, in two places, both on
-purpose.** Every block leaves the engine gated - a chord set to fill a bar
-sounds about nine tenths of it and stops, so the player hears the change - and
-writing that down literally would put a tied 63/64ths and a rest where a whole
-note belongs, so a note is written as its share of the bar. And a **shuffle**
-puts every second hit somewhere no note value can name; printed music writes a
-shuffle straight and names it at the top, which is what the block's own name
-already does, so the onsets are written on the beat and `shuffle 40` in the
-title carries the swing. The MIDI that leaves for REAPER is gated and shuffled
+**What you read is not literally what you hear, on purpose.** Every block
+leaves the engine gated - a chord set to fill a bar sounds about nine tenths of
+it and stops, so the player hears the change - and writing that down literally
+would put a tied 63/64ths and a rest where a whole note belongs, so a note is
+written as its share of the bar. The MIDI that leaves for REAPER is gated
 exactly as it always was.
 
 **The page can be read black on white.** *Light page*, under the staff, turns

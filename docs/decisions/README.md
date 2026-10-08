@@ -30,3 +30,4 @@ version and points here.
 | [0011](0011-verify-by-rendering.md) | Verify the engraving by rendering it, not by reading it | Accepted |
 | [0012](0012-offer-a-light-page.md) | Offer a light page, and turn over only the page | Accepted |
 | [0013](0013-bake-bravura-into-the-script.md) | Bake Bravura's outlines into the script | Accepted |
+| [0014](0014-remove-the-bass-and-drums-blocks.md) | Remove the Bass and Drums blocks; leave the engraver's kit alone | Accepted |

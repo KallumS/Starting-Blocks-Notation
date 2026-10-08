@@ -19,3 +19,4 @@ disk space.
 | [2026-09-22](2026-09-22-notation-offshoot.md) | Forking Starting Blocks into a notation app: the engraver, the pen, and five faults only a render could find. |
 | [2026-09-23](2026-09-23-accidentals-and-a-light-page.md) | A sharp drawn under its own notehead, and the page made readable black on white. |
 | [2026-10-08](2026-10-08-bravura-ink.md) | Bravura's symbols baked into the script, and the holes and windings that made that harder than it sounds. |
+| [2026-10-08](2026-10-08-bass-and-drums.md) | The Bass and Drums blocks removed, and the engraver's kit left in. |

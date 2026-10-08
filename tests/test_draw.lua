@@ -119,9 +119,21 @@ local function layout(st, width)
   local block = E.generate(st)
   return N.layout(block, {
     barBeats = st.barBeats, ctx = N.context(E, st),
-    drums = st.cat == "Drums", grid = N.gridFor(E, st),
+    grid = N.gridFor(E, st),
     width = (width or 700) / SP,
   }), block
+end
+
+-- A bar of one drum, hit every `step` beats. There is no drum block to ask for
+-- one any more, but the engraver and the ink still know how to write the kit,
+-- so the kit's pages are built by hand and handed straight to the layout.
+local function kitDoc(note, step, width)
+  local notes = {}
+  for i = 0, math.floor(4 / step + 1e-9) - 1 do
+    notes[#notes + 1] = { start = i * step, len = 0.1, pitch = note, vel = 100 }
+  end
+  return N.layout({ notes = notes, beats = 4, name = "kit" },
+                  { barBeats = 4, drums = true, grid = step, width = (width or 700) / SP })
 end
 
 local function draw(st, width, opts)
@@ -155,7 +167,7 @@ do
         for _, bars in ipairs({ "1/4", "1", "2" }) do
           local st = state(function(s)
             s.cat, s.rateMod, s.bars = cat, mod, BARS(bars)
-            s.rate, s.chop, s.drumRate = RATE(rate), RATE(rate), rate
+            s.rate, s.chop = RATE(rate), RATE(rate)
             s.lengthMode = "Bars"
           end)
           tried = tried + 1
@@ -165,7 +177,7 @@ do
       end
     end
   end
-  ok(tried > 200, "the sweep drew a real number of blocks (" .. tried .. ")")
+  ok(tried >= 144, "the sweep drew a real number of blocks (" .. tried .. ")")
   ok(bad == nil, "every block the panels can ask for draws: " .. tostring(bad))
 end
 
@@ -211,15 +223,14 @@ do
     { "a run up four octaves", function(s)
         s.cat = "Run"; s.rate = RATE("1/16"); s.octaves = 4
         s.lengthMode = "Bars"; s.bars = BARS("2") end },
-    { "a bass line two octaves down", function(s)
-        s.cat = "Bass"; s.bassOct = -2; s.rate = RATE("1/8") end },
+    { "a run two octaves down", function(s)
+        s.cat = "Run"; s.oct = -2; s.rate = RATE("1/8") end },
     { "a thirteenth across the great staff", function(s)
         s.family = 5; s.chord = 30; s.oct = -1 end },
     { "triplets with the figure over them", function(s)
         s.cat = "Run"; s.rate = RATE("1/8"); s.rateMod = 2
         s.lengthMode = "Bars"; s.bars = BARS("1") end },
-    { "the kit above the staff", function(s)
-        s.cat = "Drums"; s.drumPiece = 5; s.drumRate = "1/8" end },
+    { "the kit above the staff", nil, function() return kitDoc(49, 0.5, 300) end },
     -- Nothing here leaves the staff, so the furthest ink is the G clef's,
     -- which rises a space and a half over the top line and hangs a space and
     -- a half under the bottom one whatever the notes do.
@@ -230,8 +241,9 @@ do
         s.lengthMode = "Bars"; s.bars = BARS("4") end },
   }
   for _, case in ipairs(cases) do
-    local st = state(case[2])
-    local r, doc, drawn = draw(st, 300)
+    local doc = case[3] and case[3]() or layout(state(case[2]), 300)
+    local r = recorder()
+    local drawn = D.page(r.pen, doc, X0, Y0, SP, COLS)
     local promised = D.height(doc, SP)
     local top, bottom = math.huge, -math.huge
     for _, o in ipairs(r.all) do
@@ -691,10 +703,10 @@ do
     { "triplets", function(s) s.cat = "Arpeggio"; s.rate = RATE("1/4"); s.rateMod = 2 end },
     { "six sharps", function(s) s.root = ROOT("F#"); s.cat = "Run"; s.rate = RATE("1/8") end },
     { "the diminished scale", function(s) s.scale = SCL("Dim W-H"); s.cat = "Run"; s.rate = RATE("1/8") end },
-    { "the kit", function(s) s.cat = "Drums"; s.drumPiece = 3; s.drumRate = "1/8" end },
+    { "the kit", nil, function() return kitDoc(42, 0.5) end },
   }
   for _, case in ipairs(cases) do
-    local doc = layout(state(case[2]))
+    local doc = case[3] and case[3]() or layout(state(case[2]))
     local pen = recorder().pen
     pen.poly = function(pts) check(pts, case[1]) end
     D.page(pen, doc, X0, Y0, SP, COLS)

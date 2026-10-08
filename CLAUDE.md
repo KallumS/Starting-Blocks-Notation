@@ -138,13 +138,18 @@ settled several design arguments already, and it will settle more:
 - **Fixed-order arpeggios were removed.** They ordered the lowest three voices
   and appended the rest ascending, which means nothing past the third voice of a
   seventh or a thirteenth. Absent beats quietly wrong.
+- **The Bass and Drums blocks were removed** once they were no longer needed.
+  Only the two blocks went: a bass block was one chord tone on its own, low,
+  and it never touched how a chord is voiced. Which note is lowest in a chord
+  is still the chord's inversion, and arpeggios still read the chord as the
+  Chord tab sets it. In the history if they are wanted back.
 
 When something here looks like it wants a preset, a name or a curve, check it is
 not really asking for a smaller piece and a number.
 
 **No dead controls.** A control that does nothing in the current state is worse
-than no control: the drums hide the rate and shuffle entirely for a tom rather
-than showing them greyed. The same instinct removed the old "clicking a degree
+than no control: the drums used to hide the rate and shuffle entirely for a tom
+rather than show them greyed. The same instinct removed the old "clicking a degree
 while following turns following off" - there was no mode to get stuck in.
 
 Where a control goes dead there is often a better one to put in its place. A
@@ -159,7 +164,7 @@ in many places** below.
 
 Each one fills `c.notes` and leaves the block's length in `c.len`.
 `generate()` hands it `c.len` already set to `barBeats * bars`, which is what
-chord, bass and drums fill. The other three replace it: a melody is as long as
+the chord fills. The other three replace it: a melody is as long as
 its own notes, and an arpeggio or a run is as long as `repeats` passes of
 whatever the direction produced.
 
@@ -168,14 +173,14 @@ This file used to say the opposite - that a block is measured one way or the
 other and which way is a property of the block. That was wrong for these two:
 sometimes you want the pass to come out whole, and sometimes you want it to
 line up with a bar, and neither answer is the right one always. `st.lengthMode`
-picks, and `layOut` dispatches. Chord, bass and drums are bars only; melody is
-its own length and ignores the mode entirely.
+picks, and `layOut` dispatches. The chord is bars only; melody is its own
+length and ignores the mode entirely.
 
 Bars are a list with fractions in it, not a number: `M.BAR_LENGTHS` runs from a
 quarter of a bar to eight. Anything iterating bars has to cope with `st.bars`
-being less than one - the drum generator walks `while bar * barBeats < c.len`
-and clips each hit, rather than `for bar = 0, st.bars - 1`, which simply does
-not run for a fraction.
+being less than one: walk time, `while bar * barBeats < c.len`, and clip, rather
+than `for bar = 0, st.bars - 1`, which simply does not run for a fraction. The
+drum generator learned that the hard way before it was removed.
 
 **Count, do not accumulate.** `layRepeats` and the chord's chop both compute
 `n` and loop `i = 0, n - 1`, so the last note of a pass cannot land a rounding
@@ -197,20 +202,21 @@ Settings are saved as `key=value` pairs in one ExtState string. A field dropped
 from `SAVED` simply stops being written and is ignored on the way back in, so
 removing a setting needs nothing else done to old saved state. Values come back
 through `tonumber(v) or v`, so a string setting is fine as long as it never
-looks like a number - the drum rates are `"1/8"` and friends, which never do.
+looks like a number - `cat` and `lengthMode` are names, which never do.
 
 **One setting shown in many places beats one setting per place.** Straight,
 triplet and dotted is a single `rateMod` drawn on every panel, because a block
 is in one feel or the other and it is the same question wherever it is asked.
-Whatever a panel reads as a rate goes through it: `M.rateBeats`, `M.chopBeats`
-and `M.drumStep` all multiply by `M.modMul`. Adding a new rate-like setting
+Whatever a panel reads as a rate goes through it: `M.rateBeats` and
+`M.chopBeats` both multiply by `M.modMul`. Adding a new rate-like setting
 means adding it to that list, and to `M.modSuffix` so two feels of one rate do
 not become two blocks with the same name.
 
-**Prefer a name to an index when a list differs between contexts.** `drumRate`
-is kept as `"1/8"`, not as position 3, so moving from a kick to a snare keeps
-1/8 as 1/8 instead of sliding it up a shorter list. An unknown name falls back
-to `1/1`, which is why every piece's rates end there.
+**Prefer a name to an index when a list differs between contexts.** The drum
+rate was kept as `"1/8"`, not as position 3, so moving from a kick to a snare
+kept 1/8 as 1/8 instead of sliding it up a shorter list. `cat` is a name for
+the same reason, and it is why a setting saved on the Bass or Drums block
+simply opens on the chord now: an unknown name falls back to the first.
 
 **Slider ranges in the script and the clamps in `clampState` have to agree.**
 ReaImGui refuses a value outside a slider's declared range, so a setting that
@@ -223,8 +229,7 @@ two is wrong. Change both together.
 
 A chord is one row carrying its own name, symbol and intervals, so it cannot
 half-exist. Under the old JSFX these were three parallel tables and adding a
-chord meant editing all three in step; do not reintroduce that. The same goes
-for the drum pieces, which now carry their own rates and starting beat.
+chord meant editing all three in step; do not reintroduce that.
 
 Scales and roots are copied from ScaleView for REAPER and `test_engine.lua`
 asserts they still match it. Do not tidy them independently.
@@ -391,11 +396,26 @@ found them by reading the code rather than the music:
   the notation's business only.
 - **A shuffle is written straight.** It pushes every second hit a third of the
   way to the next, which no note value can name. Printed music writes a shuffle
-  straight and names it at the top, which the block's own name already does
+  straight and names it at the top, which the block's own name already did
   ("Kick 1/16 shuffle 40"), so onsets are snapped back to the block's own grid.
   `M.gridFor` is what says which grid that is. Before this existed, a shuffled
   bar came out as sixteen quarter notes, because every duration fell through
   `split` and hit the fallback.
+
+**The engraver still knows the kit, though nothing asks for it** (0014). The
+Drums block is gone from the list, but the percussion staff, `M.DRUM_MAP`,
+crossed heads, the one-bar cap on a drum's length and the grid snap were left
+in place: they were asked to stay out of the change, and nothing about a chord
+depends on them. `opts.drums` is what turns them on, and the window no longer
+passes it. Their tests build a drum part by hand (`kit()` in `test_notate.lua`,
+`kitDoc()` in `test_draw.lua`). Taking them out is a separate decision - see
+0014 for what would go.
+
+**The bass staff is the chord's, not the Bass block's.** A block below middle C
+gets a bass staff and one straddling it gets the great staff (0010); that is
+decided from the notes' range and has nothing to do with which block made
+them. It used to be tested with a bass line and is now tested with a chord two
+octaves down.
 
 **`M.split` writes a duration with one symbol wherever it falls.** It used to
 split at the metric grid first, and that was wrong about printed music: a half
@@ -474,7 +494,8 @@ tools/test.sh
 `__index` raises on anything it does not have, so calling a ReaImGui function
 that does not exist fails here rather than in REAPER. It clicks every button in
 every panel, drives every slider to both ends **from every button state** - a
-panel can hide a control behind another one, and the drums do - reloads the
+panel can hide a control behind another one, and Melody's held note does -
+reloads the
 script on top of its own saved settings, and loads state at both ends of every
 clamp.
 

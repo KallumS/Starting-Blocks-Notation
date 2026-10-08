@@ -270,10 +270,10 @@ function M.split(pos, ticks, barTicks)
 end
 
 -- The grid a block was laid out on: its own rate, which is what its onsets are
--- multiples of. The engraver snaps to this, so a shuffle comes back onto the
--- beat and everything else is left exactly where it was.
+-- multiples of. The engraver snaps to this, so anything pushed off the grid -
+-- a shuffle, when there was a drum block to have one - comes back onto the
+-- beat, and everything else is left exactly where it was.
 function M.gridFor(E, st)
-  if st.cat == "Drums" then return E.drumStep(st) end
   if st.cat == "Chord"  then return E.chopBeats(st) end
   return E.rateBeats(st)
 end
