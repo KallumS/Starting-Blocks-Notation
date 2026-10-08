@@ -1,7 +1,9 @@
 # 0006 - Write a shuffle straight and let the block's name carry it
 
 - **Date:** 2026-09-22
-- **Status:** Accepted
+- **Status:** Accepted. No block can produce a shuffle since
+  [0014](0014-remove-the-bass-and-drums-blocks.md) removed the Drums block; the
+  grid snap still runs
 
 ## Context
 

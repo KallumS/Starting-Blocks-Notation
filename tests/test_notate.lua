@@ -282,7 +282,6 @@ do
           local st = state(function(s)
             s.cat, s.rateMod, s.bars = cat, mod, BARS(bars)
             s.rate, s.chop = RATE(rate), RATE(rate)
-            s.drumRate = rate
             s.lengthMode = "Bars"
           end)
           local doc = lay(st)
@@ -304,7 +303,7 @@ do
       end
     end
   end
-  ok(tried > 200, "the sweep covered a real number of blocks (" .. tried .. ")")
+  ok(tried >= 144, "the sweep covered a real number of blocks (" .. tried .. ")")
   ok(bad == nil, "every measure of every block is filled exactly: " .. tostring(bad))
 end
 
@@ -795,9 +794,9 @@ do
   eq(doc.staves[1].clef, "treble", "and it is a treble staff")
 end
 do
-  local st = state(function(s) s.cat = "Bass"; s.bassOct = -2 end)
+  local st = state(function(s) s.oct = -2 end)              -- C2 E2 G2
   local doc = lay(st)
-  eq(#doc.staves, 1, "a bass line well below middle C gets one staff")
+  eq(#doc.staves, 1, "a chord well below middle C gets one staff")
   eq(doc.staves[1].clef, "bass", "and it is a bass staff")
 end
 do
@@ -807,9 +806,21 @@ do
   eq(doc.staves[1].clef, "treble", "treble on top")
   eq(doc.staves[2].clef, "bass", "bass underneath")
 end
+
+-- The kit. There is no drum block to ask for one any more, but the engraver
+-- still knows how to write one, so these build a drum part by hand and hand it
+-- straight to the layout, the way a block would have arrived.
+local function kit(hits, beats, grid)
+  local notes = {}
+  for i, h in ipairs(hits) do
+    notes[i] = { start = h[1], len = 0.1, pitch = h[2], vel = 100 }
+  end
+  local block = { notes = notes, beats = beats, name = "kit" }
+  return N.layout(block, { barBeats = 4, drums = true, grid = grid, width = 90 }), block
+end
+
 do
-  local st = state(function(s) s.cat = "Drums" end)
-  local doc = lay(st)
+  local doc = kit({ { 0, 36 }, { 1, 36 }, { 2, 36 }, { 3, 36 } }, 4, 1)
   eq(doc.staves[1].clef, "perc", "the kit is written under the neutral clef")
 end
 
@@ -829,20 +840,21 @@ end
 -- The kit
 ------------------------------------------------------------------------------
 
+-- The nine General MIDI notes the kit was made of: kick, snare, closed and
+-- open hi-hat, crash, ride and the three toms.
 do
-  for _, piece in ipairs(E.DRUM_PIECES) do
-    ok(N.DRUM_MAP[piece.note] ~= nil,
-       piece.name .. " has somewhere to be written on the staff")
+  for _, note in ipairs({ 36, 38, 42, 46, 49, 51, 41, 47, 50 }) do
+    ok(N.DRUM_MAP[note] ~= nil, "note " .. note .. " has somewhere to be written on the staff")
   end
 end
 
 -- A drum does not sustain, so a single crash in a long block is a hit and then
 -- silence rather than bars of tied whole notes.
 do
-  local st = state(function(s)
-    s.cat = "Drums"; s.drumPiece = 5; s.drumRate = "1/1"; s.bars = BARS("2")
-  end)
-  local doc = lay(st)
+  -- One crash in two bars. Its hits used to come a bar apart, which is exactly
+  -- as long as the cap allows, so this passed with the cap taken out; a lone
+  -- hit with a whole bar of nothing after it is what the cap is for.
+  local doc = kit({ { 0, 49 } }, 8, 4)
   for _, m in ipairs(doc.measures) do
     for _, el in ipairs(elements(m)) do
       ok(el.ticks <= 4 * N.TPQ, "no drum hit is written longer than a bar")
@@ -852,14 +864,15 @@ do
 end
 
 -- A shuffle pushes every second hit off the grid on purpose. Notation writes a
--- shuffle straight and names it at the top, which is what the block's own name
--- already does, so the onsets go back on the grid and the values stay plain.
+-- shuffle straight and names it at the top, so the onsets go back on the grid
+-- and the values stay plain. Sixteen kicks at 1/16, every second one pushed
+-- the 60% shuffle's way - a fifth of a sixteenth late.
 do
-  local st = state(function(s)
-    s.cat = "Drums"; s.drumPiece = 1; s.drumRate = "1/16"; s.shuffle = 60
-  end)
-  local doc, block = lay(st)
-  ok(block.name:match("shuffle"), "the block still says it is shuffled")
+  local hits = {}
+  for i = 0, 15 do
+    hits[#hits + 1] = { i * 0.25 + ((i % 2 == 1) and 0.6 * 0.25 / 3 or 0), 36 }
+  end
+  local doc = kit(hits, 4, 0.25)
   local els = elements(doc.measures[1])
   eq(#els, 16, "a shuffled bar of sixteenths is sixteen notes")
   for _, el in ipairs(els) do
@@ -946,6 +959,40 @@ do
          "every element knows where it falls in the whole block")
     end
   end
+end
+
+------------------------------------------------------------------------------
+-- Room for a flag
+------------------------------------------------------------------------------
+
+-- A flag on an upward stem hangs out to the right, over where the next note
+-- would sit at the ordinary spacing. Every flagged note in a sweep of the
+-- blocks most likely to have them keeps its neighbour at least FLAG_GAP off,
+-- and the dotted quarters tied across a bar - which put an eighth in front
+-- of a chord - are the case that must have one to check.
+do
+  local checked, short = 0, nil
+  local cases = {
+    function(s) s.chop = RATE("1/4"); s.rateMod = 3; s.bars = BARS("2") end,
+    function(s) s.chop = RATE("1/8"); s.rateMod = 3; s.bars = BARS("2") end,
+    function(s) s.cat = "Arpeggio"; s.rate = RATE("1/8"); s.lengthMode = "Repeats"; s.repeats = 1 end,
+  }
+  for _, mut in ipairs(cases) do
+    local doc = lay(state(mut))
+    for _, m in ipairs(doc.measures) do
+      local els = elements(m)
+      for i, el in ipairs(els) do
+        local nxt = els[i + 1]
+        if nxt and nxt.at > el.at and el.kind == "chord" and el.stem == "up"
+           and not el.beam and N.hooks(el.value) > 0 then
+          checked = checked + 1
+          if nxt.x - el.x < N.FLAG_GAP - 1e-9 then short = short or (nxt.x - el.x) end
+        end
+      end
+    end
+  end
+  ok(checked > 0, "the sweep found flagged notes with a neighbour (" .. checked .. ")")
+  ok(short == nil, "and every one keeps it a flag's width off: " .. tostring(short))
 end
 
 ------------------------------------------------------------------------------

@@ -1,7 +1,9 @@
 # 0010 - Choose the staff once per block, not per note
 
 - **Date:** 2026-09-22
-- **Status:** Accepted
+- **Status:** Accepted. The percussion staff is unreachable since
+  [0014](0014-remove-the-bass-and-drums-blocks.md); the treble, bass and great
+  staff choice is unchanged
 
 ## Context
 

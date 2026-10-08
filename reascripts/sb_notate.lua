@@ -270,10 +270,10 @@ function M.split(pos, ticks, barTicks)
 end
 
 -- The grid a block was laid out on: its own rate, which is what its onsets are
--- multiples of. The engraver snaps to this, so a shuffle comes back onto the
--- beat and everything else is left exactly where it was.
+-- multiples of. The engraver snaps to this, so anything pushed off the grid -
+-- a shuffle, when there was a drum block to have one - comes back onto the
+-- beat, and everything else is left exactly where it was.
 function M.gridFor(E, st)
-  if st.cat == "Drums" then return E.drumStep(st) end
   if st.cat == "Chord"  then return E.chopBeats(st) end
   return E.rateBeats(st)
 end
@@ -716,22 +716,24 @@ end
 -- Heads and accidentals
 ------------------------------------------------------------------------------
 
--- Half a notehead, in spaces. `sb_draw.lua` draws the ellipse exactly this
--- wide and reads these rather than keeping its own copy: the layout cannot say
--- where the accidental in front of a head goes without knowing how much room
--- the head takes, and two numbers that have to agree should be one number.
-M.HEAD_RX  = 0.62
-M.WHOLE_RX = 0.82
+-- Half a notehead, in spaces: Bravura's black head is 1.18 wide and its
+-- whole note 1.688 (sb_glyphs.lua). `sb_draw.lua` reads these rather than
+-- keeping its own copy: the layout cannot say where the accidental in front
+-- of a head goes without knowing how much room the head takes, and two
+-- numbers that have to agree should be one number.
+M.HEAD_RX  = 0.59
+M.WHOLE_RX = 0.844
 
--- How wide each accidental is, and the air between the block of them and the
--- leftmost head.
-M.ACC_WIDTHS = { [-2] = 1.25, [-1] = 0.78, [0] = 0.80, [1] = 0.90, [2] = 0.80 }
-M.ACC_PAD    = 0.30
+-- How wide each accidental's column is - Bravura's symbol and a little air -
+-- and the air between the block of them and the leftmost head.
+M.ACC_WIDTHS = { [-2] = 1.76, [-1] = 1.02, [0] = 0.80, [1] = 1.12, [2] = 1.10 }
+M.ACC_PAD    = 0.25
 
 -- How far apart two accidentals must be before they can share a column, in
--- staff degrees. A sharp stands about two and a half spaces tall, which is
--- five of these, so a sixth apart is the rule and leaves a little air.
-M.ACC_CLEAR  = 6
+-- staff degrees. Bravura's sharp stands nearly two spaces and four fifths
+-- tall, which is between five and six of these, so a seventh apart is the
+-- rule and leaves a little air.
+M.ACC_CLEAR  = 7
 
 -- Which side of the stem each head sits on, and where each accidental goes.
 --
@@ -827,10 +829,20 @@ end
 M.PAD_LEFT   = 1.2      -- inside a bar line, before the first note
 M.PAD_RIGHT  = 1.2
 M.MIN_GAP    = 2.2      -- between one onset and the next
+M.FLAG_GAP   = 2.7      -- the same after a flag, which reaches out to the right
 M.ACC_WIDTH  = 1.1
-M.CLEF_WIDTH = 3.2
-M.SIG_STEP   = 0.9
+M.CLEF_WIDTH = 4.0
+M.SIG_STEP   = 1.05
 M.TIME_WIDTH = 2.4
+M.TIME_FIGURE = 1.8     -- Bravura's widest time-signature figure, and a gap
+
+-- How much room a time signature takes: its widest row of figures with some
+-- air, and never less than a single figure needs. A REAPER project can be in
+-- twelve-eight, and two figures side by side are twice as wide as one.
+function M.timeWidth(time)
+  local n = math.max(#tostring(time and time.num or 4), #tostring(time and time.den or 4))
+  return math.max(M.TIME_WIDTH, n * M.TIME_FIGURE + 0.6)
+end
 
 -- How wide a duration wants to be. Proportional would make a whole note eight
 -- times a quarter and a page mostly air, so this is the usual compromise: the
@@ -841,7 +853,7 @@ end
 
 function M.space(doc, width)
   -- What goes in front of the first measure of every system.
-  local head = M.CLEF_WIDTH + M.TIME_WIDTH + 0.8
+  local head = M.CLEF_WIDTH + M.timeWidth(doc.time) + 0.8
              + doc.sig.count * M.SIG_STEP + (doc.sig.count > 0 and 0.6 or 0)
   doc.headWidth = head
 
@@ -871,7 +883,18 @@ function M.space(doc, width)
       at[o] = x
       local nextAt = onsets[i + 1]
       local span = nextAt and (nextAt - o) or (m.ticks - o)
-      x = x + math.max(widthFor(math.max(span, 1)), M.MIN_GAP)
+      -- A flag on an upward stem hangs out to the right over where the next
+      -- note would be, so a flagged note keeps its neighbour further off.
+      local least = M.MIN_GAP
+      for _, staff in ipairs(m.staves) do
+        for _, el in ipairs(staff.elements) do
+          if el.at == o and el.kind == "chord" and el.stem == "up" and not el.beam
+             and M.hooks(el.value) > 0 then
+            least = M.FLAG_GAP
+          end
+        end
+      end
+      x = x + math.max(widthFor(math.max(span, 1)), least)
     end
     m.width = math.max(x + M.PAD_RIGHT, 6)
 

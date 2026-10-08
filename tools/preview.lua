@@ -127,7 +127,7 @@ function ImGui.DrawList_AddLine(_, _, _, _, _, col)
   sawGrid = true
   rollCols.staff = rollCols.staff or col
 end
-function ImGui.DrawList_AddConvexPolyFilled(_, _, col)
+function ImGui.DrawList_AddConcavePolyFilled(_, _, col)
   if not inRoll then return end
   rollCols.ink = rollCols.ink or col
 end

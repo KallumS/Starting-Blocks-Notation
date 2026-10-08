@@ -18,6 +18,7 @@ local E = dofile(HERE .. "../reascripts/sb_engine.lua")
 local N = dofile(HERE .. "../reascripts/sb_notate.lua")
 local D = dofile(HERE .. "../reascripts/sb_draw.lua")
 D.setNotate(N)
+D.setGlyphs(dofile(HERE .. "../reascripts/sb_glyphs.lua"))
 
 ------------------------------------------------------------------------------
 -- An SVG pen
@@ -125,13 +126,8 @@ local SHEET = {
   { "The diminished scale, which no signature can hold",
     function(s) s.scale = SCL("Dim W-H"); s.cat = "Run"; s.rate = RATE("1/8")
                 s.lengthMode = LM("Bars"); s.bars = BARS("1") end },
-  { "A bass line, on its own staff",
-    function(s) s.cat = "Bass"; s.bassOct = -2; s.rate = RATE("1/8") end },
-  { "The kit: a kick in sixteenths, shuffled",
-    function(s) s.cat = "Drums"; s.drumPiece = 1; s.drumRate = "1/16"
-                s.shuffle = 40 end },
-  { "The kit: closed hats and a backbeat rate",
-    function(s) s.cat = "Drums"; s.drumPiece = 3; s.drumRate = "1/8" end },
+  { "A chord two octaves down, on the bass staff alone",
+    function(s) s.oct = -2; s.chop = RATE("1/4") end },
   { "Four bars, which wrap onto a second system",
     function(s) s.cat = "Run"; s.rate = RATE("1/8")
                 s.lengthMode = LM("Bars"); s.bars = BARS("4") end },
@@ -168,7 +164,7 @@ for _, entry in ipairs(SHEET) do
     local ctx   = N.context(E, st)
     local block = E.generate(st)
     local doc   = N.layout(block, {
-      barBeats = 4, ctx = ctx, drums = st.cat == "Drums",
+      barBeats = 4, ctx = ctx,
       grid = N.gridFor(E, st), width = (WIDTH - 70) / SP,
     })
 

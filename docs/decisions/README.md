@@ -20,7 +20,7 @@ version and points here.
 | [0001](0001-fork-rather-than-a-mode.md) | Fork Starting Blocks rather than add a notation mode to it | Accepted |
 | [0002](0002-notation-replaces-the-roll.md) | Notation replaces the roll; there is no grid view | Accepted |
 | [0003](0003-split-the-engraving-at-a-pen.md) | Split the engraving at a pen: one module decides, one inks | Accepted |
-| [0004](0004-draw-the-glyphs.md) | Draw the glyphs rather than depend on a music font | Accepted |
+| [0004](0004-draw-the-glyphs.md) | Draw the glyphs rather than depend on a music font | Superseded in part by 0013 |
 | [0005](0005-notate-the-share-of-the-bar.md) | Notate a note as its share of the bar, not its gated length | Accepted |
 | [0006](0006-write-a-shuffle-straight.md) | Write a shuffle straight and let the block's name carry it | Accepted |
 | [0007](0007-score-the-key-signature.md) | Choose the key signature by scoring, not by lookup | Accepted |
@@ -29,3 +29,5 @@ version and points here.
 | [0010](0010-choose-the-staff-once.md) | Choose the staff once per block, not per note | Accepted |
 | [0011](0011-verify-by-rendering.md) | Verify the engraving by rendering it, not by reading it | Accepted |
 | [0012](0012-offer-a-light-page.md) | Offer a light page, and turn over only the page | Accepted |
+| [0013](0013-bake-bravura-into-the-script.md) | Bake Bravura's outlines into the script | Accepted |
+| [0014](0014-remove-the-bass-and-drums-blocks.md) | Remove the Bass and Drums blocks; leave the engraver's kit alone | Accepted |

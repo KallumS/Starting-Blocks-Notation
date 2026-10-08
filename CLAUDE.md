@@ -40,6 +40,7 @@ person who finds it inconvenient.
 | `reascripts/sb_engine.lua` | The music. **No `reaper.` and no `ImGui.` in this file, ever.** |
 | `reascripts/sb_notate.lua` | The engraver: a block in, a page out. Pure, and no drawing in it. |
 | `reascripts/sb_draw.lua` | The ink. Draws through a pen, so **no `ImGui.` in this file either.** |
+| `reascripts/sb_glyphs.lua` | Bravura's symbols as polygons. **Generated** by `tools/bake_glyphs.py`; never hand-edited. |
 | `reascripts/sb_midi.lua` | The MIDI file writer. Pure. |
 | `reascripts/sb_place.lua` | Everything that touches REAPER. |
 
@@ -63,20 +64,64 @@ whole engraver. If a drawing question needs ImGui, the answer is another pen
 call, not an import.
 
 **The pen is four calls and adding a fifth costs three implementations**, so
-the bar for one is high. Curves are sampled into short `line` segments by
+the bar for one is high. Curves are sampled into short straight pieces by
 `sb_draw.lua` itself rather than being a pen call, and that is the answer
 almost every time a glyph seems to need something new:
 
 ```lua
 pen.line(x1, y1, x2, y2, col, thickness)
-pen.poly(pts, col)                    -- pts is flat {x1,y1,x2,y2,...}, convex
+pen.poly(pts, col)                    -- pts is flat {x1,y1,x2,y2,...}: simple, clockwise
 pen.circle(x, y, r, col, filled)      -- filled false means stroked
 pen.text(x, y, col, str, size, center)  -- y is the middle, not the baseline
 ```
 
-`poly` must be **convex**: the ellipses and beams are, and a glyph that wants a
-concave shape wants two polygons. Colours are `0xRRGGBBAA` throughout, as
-everywhere else in the window.
+`poly` takes any **simple** polygon - concave is fine, crossing itself and
+holes are not - **wound clockwise on screen** (0013). Clockwise because
+ReaImGui anti-aliases a fill by pushing a soft fringe *outward*, and it decides
+which way is out from the winding: anticlockwise, the fringe eats into the
+shape. `sb_draw.lua`'s `fill()` turns any shape it builds clockwise before it
+reaches the pen; the baked glyphs are clockwise already. `test_draw.lua`
+asserts both properties for every polygon on a spread of pages, because
+neither one shows in a test that only counts shapes. Colours are `0xRRGGBBAA`
+throughout, as everywhere else in the window.
+
+## The symbols are Bravura's
+
+Clefs, noteheads, flags, rests, accidentals, the time signature's figures, the
+tuplet's figure and the brace are **Bravura**, the SMuFL reference font -
+the same symbols Noterator sets - baked into `sb_glyphs.lua` as polygons
+(0013). Nothing is loaded at run time and nothing has to be installed, which
+was the whole objection to a font (0004). The lines - staff, stems, beams,
+ledgers, bar lines, ties - are drawn in `sb_draw.lua` to Bravura's own
+engraving defaults (stem 0.12, staff line 0.13, beam 0.5, ledger 0.16 and 0.4
+past the head), so the two kinds of ink are weighted to sit together.
+
+- **Regenerate, never edit.** `python3 tools/bake_glyphs.py Bravura.otf >
+  reascripts/sb_glyphs.lua` (needs `fonttools` and `shapely`). A new symbol is
+  a row in its `GLYPHS` list. The font file is not in the repository; it is in
+  Noterator's `Resources/Fonts/` or Bravura's own `redist/otf/`.
+- **A glyph with a hole is cut into pieces that overlap.** ReaImGui cannot
+  fill a polygon with a hole, so the bake cuts through each one. Cut flush,
+  two anti-aliased edges meet in a faint seam; overlapping by a tenth of a
+  space, each piece's solid middle covers the other's soft edge.
+- **The open noteheads are the exception.** They keep `outer` and `holes`
+  apart, and the page fills the head and punches the counter with the paper,
+  because the counter of an open head is opaque here (the staff line stops at
+  its edge). `test_draw.lua` counts the punches.
+- **It is licensed.** Bravura is under the SIL Open Font License and so is
+  anything derived from it: `sb_glyphs.lua` carries the notice and
+  `sb_glyphs-OFL.txt` ships beside it. The licence covers those two files and
+  nothing else in the script. Do not name the baked data "Bravura" - that is a
+  Reserved Font Name - but saying where it came from is fine and is done.
+- **The layout's widths follow the glyphs.** `N.HEAD_RX` and `N.WHOLE_RX` are
+  half Bravura's head widths, `N.ACC_WIDTHS` its accidentals plus air,
+  `N.ACC_CLEAR` is a seventh because its sharp is nearly 2.8 spaces tall, and
+  `N.timeWidth` makes room for two figures. Re-bake a glyph that changes size
+  and those numbers have to follow it.
+- **The window's pen is the same pen** whichever ink it is drawing: the
+  glyphs are only `poly` calls, so the window, the test recorder and the SVG
+  preview needed nothing new for them. Loaders hand the module its data with
+  `Draw.setGlyphs(dofile(... "sb_glyphs.lua"))`, beside `setNotate`.
 
 ## What this thing is for
 
@@ -93,13 +138,18 @@ settled several design arguments already, and it will settle more:
 - **Fixed-order arpeggios were removed.** They ordered the lowest three voices
   and appended the rest ascending, which means nothing past the third voice of a
   seventh or a thirteenth. Absent beats quietly wrong.
+- **The Bass and Drums blocks were removed** once they were no longer needed.
+  Only the two blocks went: a bass block was one chord tone on its own, low,
+  and it never touched how a chord is voiced. Which note is lowest in a chord
+  is still the chord's inversion, and arpeggios still read the chord as the
+  Chord tab sets it. In the history if they are wanted back.
 
 When something here looks like it wants a preset, a name or a curve, check it is
 not really asking for a smaller piece and a number.
 
 **No dead controls.** A control that does nothing in the current state is worse
-than no control: the drums hide the rate and shuffle entirely for a tom rather
-than showing them greyed. The same instinct removed the old "clicking a degree
+than no control: the drums used to hide the rate and shuffle entirely for a tom
+rather than show them greyed. The same instinct removed the old "clicking a degree
 while following turns following off" - there was no mode to get stuck in.
 
 Where a control goes dead there is often a better one to put in its place. A
@@ -114,7 +164,7 @@ in many places** below.
 
 Each one fills `c.notes` and leaves the block's length in `c.len`.
 `generate()` hands it `c.len` already set to `barBeats * bars`, which is what
-chord, bass and drums fill. The other three replace it: a melody is as long as
+the chord fills. The other three replace it: a melody is as long as
 its own notes, and an arpeggio or a run is as long as `repeats` passes of
 whatever the direction produced.
 
@@ -123,14 +173,14 @@ This file used to say the opposite - that a block is measured one way or the
 other and which way is a property of the block. That was wrong for these two:
 sometimes you want the pass to come out whole, and sometimes you want it to
 line up with a bar, and neither answer is the right one always. `st.lengthMode`
-picks, and `layOut` dispatches. Chord, bass and drums are bars only; melody is
-its own length and ignores the mode entirely.
+picks, and `layOut` dispatches. The chord is bars only; melody is its own
+length and ignores the mode entirely.
 
 Bars are a list with fractions in it, not a number: `M.BAR_LENGTHS` runs from a
 quarter of a bar to eight. Anything iterating bars has to cope with `st.bars`
-being less than one - the drum generator walks `while bar * barBeats < c.len`
-and clips each hit, rather than `for bar = 0, st.bars - 1`, which simply does
-not run for a fraction.
+being less than one: walk time, `while bar * barBeats < c.len`, and clip, rather
+than `for bar = 0, st.bars - 1`, which simply does not run for a fraction. The
+drum generator learned that the hard way before it was removed.
 
 **Count, do not accumulate.** `layRepeats` and the chord's chop both compute
 `n` and loop `i = 0, n - 1`, so the last note of a pass cannot land a rounding
@@ -152,20 +202,21 @@ Settings are saved as `key=value` pairs in one ExtState string. A field dropped
 from `SAVED` simply stops being written and is ignored on the way back in, so
 removing a setting needs nothing else done to old saved state. Values come back
 through `tonumber(v) or v`, so a string setting is fine as long as it never
-looks like a number - the drum rates are `"1/8"` and friends, which never do.
+looks like a number - `cat` and `lengthMode` are names, which never do.
 
 **One setting shown in many places beats one setting per place.** Straight,
 triplet and dotted is a single `rateMod` drawn on every panel, because a block
 is in one feel or the other and it is the same question wherever it is asked.
-Whatever a panel reads as a rate goes through it: `M.rateBeats`, `M.chopBeats`
-and `M.drumStep` all multiply by `M.modMul`. Adding a new rate-like setting
+Whatever a panel reads as a rate goes through it: `M.rateBeats` and
+`M.chopBeats` both multiply by `M.modMul`. Adding a new rate-like setting
 means adding it to that list, and to `M.modSuffix` so two feels of one rate do
 not become two blocks with the same name.
 
-**Prefer a name to an index when a list differs between contexts.** `drumRate`
-is kept as `"1/8"`, not as position 3, so moving from a kick to a snare keeps
-1/8 as 1/8 instead of sliding it up a shorter list. An unknown name falls back
-to `1/1`, which is why every piece's rates end there.
+**Prefer a name to an index when a list differs between contexts.** The drum
+rate was kept as `"1/8"`, not as position 3, so moving from a kick to a snare
+kept 1/8 as 1/8 instead of sliding it up a shorter list. `cat` is a name for
+the same reason, and it is why a setting saved on the Bass or Drums block
+simply opens on the chord now: an unknown name falls back to the first.
 
 **Slider ranges in the script and the clamps in `clampState` have to agree.**
 ReaImGui refuses a value outside a slider's declared range, so a setting that
@@ -178,8 +229,7 @@ two is wrong. Change both together.
 
 A chord is one row carrying its own name, symbol and intervals, so it cannot
 half-exist. Under the old JSFX these were three parallel tables and adding a
-chord meant editing all three in step; do not reintroduce that. The same goes
-for the drum pieces, which now carry their own rates and starting beat.
+chord meant editing all three in step; do not reintroduce that.
 
 Scales and roots are copied from ScaleView for REAPER and `test_engine.lua`
 asserts they still match it. Do not tidy them independently.
@@ -218,15 +268,18 @@ shrinks `E.MAX_NOTES` to test it rather than pretending some setting reaches it.
 **The window's pen is where ReaImGui's awkwardness is kept**, so that none of
 it reaches `sb_draw.lua`. Three things live there and nowhere else:
 
-- `DrawList_AddConvexPolyFilled` wants a **`reaper.array`**, not a table, so
-  the pen wraps every polygon in `reaper.new_array(pts)`. The mocks hand the
-  table straight back, which is enough for them to count its coordinates.
+- Polygons go through **`DrawList_AddConcavePolyFilled`**, which takes any
+  simple polygon and is in every ReaImGui that speaks the 0.9 API the script
+  already asks for. It wants a **`reaper.array`**, not a table, so the pen
+  wraps every polygon in `reaper.new_array(pts)`. The mocks hand the table
+  straight back, which is enough for them to count its coordinates.
 - Sizing text needs **`DrawList_AddTextEx`**, which older ReaImGui builds do
   not have. It is feature-detected once through a **`pcall`**, not by reading
   the key: the test mock's `__index` raises on anything it does not have, so a
   bare `if ImGui.DrawList_AddTextEx` would be a failure rather than a false.
-  Without it the figures fall back to the window's own font size, which is the
-  only part of the page that is set rather than drawn (0004).
+  Nothing on the page uses `text` any more - the figures are Bravura's now
+  (0013) - but the pen keeps the call, so a label on the page later costs
+  nothing new.
 - The font that sizing needs is created and attached **once, in `main()`**,
   after `CreateContext`. Attaching per frame leaks.
 
@@ -343,11 +396,26 @@ found them by reading the code rather than the music:
   the notation's business only.
 - **A shuffle is written straight.** It pushes every second hit a third of the
   way to the next, which no note value can name. Printed music writes a shuffle
-  straight and names it at the top, which the block's own name already does
+  straight and names it at the top, which the block's own name already did
   ("Kick 1/16 shuffle 40"), so onsets are snapped back to the block's own grid.
   `M.gridFor` is what says which grid that is. Before this existed, a shuffled
   bar came out as sixteen quarter notes, because every duration fell through
   `split` and hit the fallback.
+
+**The engraver still knows the kit, though nothing asks for it** (0014). The
+Drums block is gone from the list, but the percussion staff, `M.DRUM_MAP`,
+crossed heads, the one-bar cap on a drum's length and the grid snap were left
+in place: they were asked to stay out of the change, and nothing about a chord
+depends on them. `opts.drums` is what turns them on, and the window no longer
+passes it. Their tests build a drum part by hand (`kit()` in `test_notate.lua`,
+`kitDoc()` in `test_draw.lua`). Taking them out is a separate decision - see
+0014 for what would go.
+
+**The bass staff is the chord's, not the Bass block's.** A block below middle C
+gets a bass staff and one straddling it gets the great staff (0010); that is
+decided from the notes' range and has nothing to do with which block made
+them. It used to be tested with a bass line and is now tested with a chord two
+octaves down.
 
 **`M.split` writes a duration with one symbol wherever it falls.** It used to
 split at the metric grid first, and that was wrong about printed music: a half
@@ -426,7 +494,8 @@ tools/test.sh
 `__index` raises on anything it does not have, so calling a ReaImGui function
 that does not exist fails here rather than in REAPER. It clicks every button in
 every panel, drives every slider to both ends **from every button state** - a
-panel can hide a control behind another one, and the drums do - reloads the
+panel can hide a control behind another one, and Melody's held note does -
+reloads the
 script on top of its own saved settings, and loads state at both ends of every
 clamp.
 
@@ -545,7 +614,7 @@ iterating on one glyph bearable.
 **This app is Starting Blocks with the roll replaced** (0001). The engine, the
 MIDI writer and `sb_place.lua` came across unchanged and should stay that way,
 so a fix upstream is a copy rather than a merge. Everything new is
-`sb_notate.lua`, `sb_draw.lua`, their two suites and `tools/preview_page.lua`.
+`sb_notate.lua`, `sb_draw.lua`, `sb_glyphs.lua` and its bake tool, their two suites and `tools/preview_page.lua`.
 
 What follows is that app's own history, carried over because it still explains
 why the engine looks the way it does.
