@@ -227,6 +227,12 @@ do
         s.cat = "Run"; s.oct = -2; s.rate = RATE("1/8") end },
     { "a thirteenth across the great staff", function(s)
         s.family = 5; s.chord = 30; s.oct = -1 end },
+    -- Its sixth inversion is the highest a chord now reaches: the 13th in the
+    -- bass and the six notes under it lifted above, three octaves up.
+    { "a thirteenth's sixth inversion, three octaves up", function(s)
+        s.family = 1; s.dia = 5; s.inv = 6; s.oct = 3 end },
+    { "a thirteenth's sixth inversion, three octaves down", function(s)
+        s.family = 1; s.dia = 5; s.inv = 6; s.oct = -3 end },
     { "triplets with the figure over them", function(s)
         s.cat = "Run"; s.rate = RATE("1/8"); s.rateMod = 2
         s.lengthMode = "Bars"; s.bars = BARS("1") end },

@@ -97,6 +97,12 @@ local SHEET = {
                 s.chord = 9; s.chop = RATE("1/4") end },
   { "A thirteenth, which needs both staves",
     function(s) s.family = 5; s.chord = 30; s.oct = -1 end },
+  { "A seventh in its third inversion: the 7th in the bass",
+    function(s) s.dia = 2; s.inv = 3; s.degree = 4 end },
+  { "A ninth in its fourth inversion: the 9th in the bass",
+    function(s) s.dia = 3; s.inv = 4 end },
+  { "A thirteenth in its sixth inversion: the 13th in the bass",
+    function(s) s.dia = 5; s.inv = 6; s.oct = -1 end },
   { "An arpeggio in eighths",
     function(s) s.cat = "Arpeggio"; s.rate = RATE("1/8")
                 s.lengthMode = LM("Bars"); s.bars = BARS("1") end },
