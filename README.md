@@ -163,7 +163,7 @@ would put a tied 63/64ths and a rest where a whole note belongs, so a note is
 written as its share of the bar. The MIDI that leaves for REAPER is gated
 exactly as it always was.
 
-**The page can be read black on white.** *Light page*, under the staff, turns
+**The page can be read black on white.** *Light Page*, under the staff, turns
 the paper over and is remembered between sessions. Only the page turns over -
 the window keeps its own colours, because this is a sheet of paper laid on the
 desk rather than a second theme for the app.
@@ -177,9 +177,9 @@ than to fill it with rests that are not part of it.
 Unchanged from Starting Blocks. The notation is a way of reading a block, not a
 different kind of output.
 
-- **Insert at cursor** puts it on the selected track at the edit cursor, as one
+- **Insert at Cursor** puts it on the selected track at the edit cursor, as one
   MIDI item named after the block.
-- **Export .mid** writes it into `<REAPER resource path>/Starting Blocks/`.
+- **Export MIDI File** writes it into `<REAPER resource path>/Starting Blocks/`.
   Point the Media Explorer at that folder and every block you export is one
   drag away from the arrange.
 - **Audition** plays it through the virtual keyboard, so a record-armed and
