@@ -871,7 +871,7 @@ do
 
   -- Clicking the control turns the paper over, and the window is not a second
   -- theme: whatever the page does, the chrome underneath is unchanged.
-  ok(clickLabel("Light page"), "the page can be turned over from the window")
+  ok(clickLabel("Light Page"), "the page can be turned over from the window")
   ok(frame(), "and the next frame draws")
   local litLow, litHigh = tones()
   ok(litHigh and lum(litHigh) > lum(darkHigh) - 1,
