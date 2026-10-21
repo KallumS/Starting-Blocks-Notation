@@ -317,6 +317,24 @@ no programmer words on screen ("buffer"). Only the labels change: stored
 values (`cat`, `lengthMode`, rate names) and the engine's tables are left as
 they are, and the engine is Starting Blocks', so a word in it changes there first.
 
+**The rest of Apple's HIG Foundations**
+([0017](docs/decisions/0017-apples-hig-foundations.md),
+[`docs/apple-hig-review.md`](docs/apple-hig-review.md), after Midi Suggester's
+0009 and Transient Shuffler): every line of text is **7:1** on the ground
+(secondary `#B0B6C0`, warnings `#FF9E96` - the house red and `#8A919C` are
+not for words); **View → Text Size** 100-200% (Cmd+= / Cmd+- / Cmd+0),
+saved as `textSize`, the system sans-serif at 13 points; controls **28
+points tall, 12 apart** (`pushSize`, before `Begin`, popped after `End` like
+the theme); **keyboard navigation** on, its ring `#F2F4F7`; a chosen button
+also carries an **ink bar** (not colour alone); the **message at the top**
+until *Dismiss*. Rules for new code: every fixed size goes through `px()`,
+every button through `pick()` (never narrower than its label), every text
+colour 7:1. `tests/hig_mock.lua` - the same file in every ReaImGui repo of
+the family - adds the calls to the mock and checks each of these per widget.
+**The final sweep** (1.2, 0017's dated section): the same window changes as Starting Blocks 2.5 - menus and tooltips `#2A2F37` with a `#3A404A` rule; slider tracks and tick boxes through `slider()`/`checkbox()`, which add a `#8A919C` edge, a tooltip and their place in the row; **no bare `SameLine` between controls** (`flowStart`, then `flowNext`/`flowNextW`/`flowText`); words wrapped (`dim()`, `flowText`), tooltips wrapped (`tip()`); Escape lets go of focus or a menu first; a minimum window size; the title names the block. On the page, the sounding note also gets a wedge above it (`MARK_*` in `sb_draw.lua`), so it is not shown by colour alone; the light page's accent is `shade(SELECTED, -0.45)`, 3.2:1 on its paper. `test_ui`'s ruler fails any line wider than the narrowest window at 100% or 200%, in every state of every panel, and the page's ink, staff lines and sounding note are checked 7:1, 3:1 and 3:1 on both papers.
+
+The text size is a window setting like Light Page, kept on `ui` (`ui.textSize`) and saved in the state string beside `VIEW`, clamped by `setTextSize`; the page itself is a picture of music and keeps its own staff size. `tools/preview.lua` knows the new calls.
+
 The step numbers are **neutral, not an accent**, and the test holds that in
 place: the step colour is pushed as a text colour nowhere but on the numbers.
 
@@ -373,7 +391,9 @@ asserts that **nothing is drawn in the accent while nothing is playing**, which
 is the assertion that would catch someone restoring the old rule by habit.
 
 **The page can be turned over, and only the page** (0012). A **Light Page**
-toggle draws it black on white; the window keeps its chrome either way, because
+toggle draws it black on an off-white (`#E8EBEF`, the dark page's ink: pure
+white glares in a dark window), with the dark page's staff colour (3:1 or more
+on either paper); the window keeps its chrome either way, because
 a light page is a sheet of paper on the desk rather than a second theme for the
 app. `PAGES` holds the two, and the light one's accent is the same yellow
 through `shade()` rather than a fourth colour - a saturated yellow is invisible

@@ -587,6 +587,34 @@ do
      hot .. " of " .. total .. ")")
 end
 
+-- Not by colour alone (final HIG sweep, 0017): the sounding note also has a
+-- wedge pointing down at it from above the highest ink, inside the page.
+do
+  local st = state(function(s)
+    s.cat = "Run"; s.rate = RATE("1/8"); s.lengthMode = "Bars"; s.bars = BARS("1")
+  end)
+  local r, doc, h = draw(st, 700, { highlight = function(el) return el.abs == 0 end })
+  local above = select(1, D.margins(doc))
+  local inkTop = firstStaff(doc).top - above * SP
+  local first
+  for _, el in ipairs(doc.measures[1].staves[1].elements) do
+    if el.abs == 0 then first = el end
+  end
+  local wedge
+  for _, o in ipairs(r.polys) do
+    if o.col == ACCENT and o.y2 <= inkTop + 0.01 then wedge = o end
+  end
+  ok(wedge ~= nil, "the sounding note has a mark above it, not only its colour")
+  if wedge and first then
+    near(wedge.cx, first.screenX, 0.01, "centred over that note")
+    ok(wedge.y1 >= Y0 and wedge.y2 <= Y0 + h, "and inside the room the page keeps")
+  end
+  local r2 = draw(st)
+  local stray
+  for _, o in ipairs(r2.polys) do if o.col == ACCENT then stray = o end end
+  ok(stray == nil, "and there is no mark while nothing is playing")
+end
+
 ------------------------------------------------------------------------------
 -- The ground
 ------------------------------------------------------------------------------

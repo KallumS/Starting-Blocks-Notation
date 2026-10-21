@@ -51,6 +51,11 @@ local BAR_SEP     = 0.40
 local TIE_MID     = 0.22      -- how thick a tie is at its middle
 local TUPLET_TH   = 0.16
 local DOT_R       = 0.20
+-- The wedge over the note an audition is inside: half its width, its height,
+-- and how far its point stops above the highest ink.
+local MARK_W      = 0.45
+local MARK_H      = 0.60
+local MARK_GAP    = 0.30
 
 ------------------------------------------------------------------------------
 -- Shapes
@@ -624,6 +629,7 @@ function D.page(pen, doc, x0, y0, sp, col, opts)
     end
 
     local mx = x0 + doc.headWidth * sp
+    local marks = {}
     for mi, m in ipairs(sys) do
       local mw = m.width * sp * scale
 
@@ -637,8 +643,10 @@ function D.page(pen, doc, x0, y0, sp, col, opts)
               rest(pen, s, ex, el.measureRest and 1 or el.value.den,
                    el.value.dots or 0, ink)
             else
-              local c = (opts.highlight and opts.highlight(el)) and col.accent or ink
+              local hot = opts.highlight and opts.highlight(el)
+              local c = hot and col.accent or ink
               chord(pen, s, el, ex, c, ground)
+              if hot then marks[ex] = true end
               el.screenX = ex
             end
           end
@@ -724,6 +732,17 @@ function D.page(pen, doc, x0, y0, sp, col, opts)
       else
         pen.line(mx, top, mx, bot, ink, math.max(1, BAR_TH * sp))
       end
+    end
+
+    -- The note sounding is not told by its colour alone: a small wedge in the
+    -- same accent points down at it from above the system, in the room the
+    -- page already keeps there (the pad over the first system, the gap
+    -- between systems under the others), so it is found without telling
+    -- yellow from white.
+    local point = staffTops[1] - above * sp - MARK_GAP * sp
+    for at in pairs(marks) do
+      fill(pen, { at - MARK_W * sp, point - MARK_H * sp, at + MARK_W * sp, point - MARK_H * sp,
+                  at, point }, col.accent)
     end
 
     y = sysBottom + below * sp + systemGap + above * sp

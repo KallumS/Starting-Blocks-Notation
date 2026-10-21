@@ -152,9 +152,9 @@ for i = 1, #arg do
 end
 
 local INK     = LIGHT and 0x14171CFF or 0xE8EBEFFF
-local STAFFC  = LIGHT and 0x99A2B0FF or 0x9AA2AEFF
-local GROUND  = LIGHT and 0xF5F7FAFF or 0x151A20FF
-local ACCENT  = LIGHT and 0xA69A00FF or 0xFFF200FF
+local STAFFC  = LIGHT and 0x6E7683FF or 0x9AA2AEFF
+local GROUND  = LIGHT and 0xE8EBEFFF or 0x151A20FF
+local ACCENT  = LIGHT and 0x8C8500FF or 0xFFF200FF
 local LABEL   = LIGHT and 0x555C66FF or 0x8A919CFF
 
 local out, y = {}, 24
@@ -191,6 +191,6 @@ local head = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" ' 
   'viewBox="0 0 %d %d"><rect width="100%%" height="100%%" fill="PAGECOL"/>')
   :format(WIDTH, H, WIDTH, H)
 local body = (head .. table.concat(out, "\n") .. "</svg>")
-  :gsub("PAGECOL", LIGHT and "#f5f7fa" or "#151a20")
+  :gsub("PAGECOL", LIGHT and "#e8ebef" or "#151a20")
   :gsub("LABELCOL", LIGHT and "#555c66" or "#8a919c")
 print(body)
