@@ -32,3 +32,4 @@ version and points here.
 | [0013](0013-bake-bravura-into-the-script.md) | Bake Bravura's outlines into the script | Accepted |
 | [0014](0014-remove-the-bass-and-drums-blocks.md) | Remove the Bass and Drums blocks; leave the engraver's kit alone | Accepted |
 | [0015](0015-a-chord-has-as-many-inversions-as-notes.md) | A chord has as many inversions as it has notes, less one | Accepted |
+| [0016](0016-the-window-follows-apples-writing-guidelines.md) | The window's text follows Apple's writing guidelines | Accepted |
