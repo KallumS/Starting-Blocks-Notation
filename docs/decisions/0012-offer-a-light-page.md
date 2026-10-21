@@ -54,3 +54,7 @@ about the three; deriving one is what the scheme already does everywhere else.
   fine in a diff and is invisible on screen.
 - `tools/preview_page.lua --light` renders the light page, so it can be looked
   at the same way everything else in the engraving is (0011).
+
+**21 October 2026:** the light paper is `#E8EBEF`, not `#F5F7FA`, its staff
+lines `#6E7683` (the dark page's) and its accent `shade(SELECTED, -0.45)` -
+see 0017's dated section. The staff lines were 2.4:1 on the old paper.

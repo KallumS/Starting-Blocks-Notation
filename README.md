@@ -80,7 +80,8 @@ action list, where you can run it, give it a shortcut, or right-click a toolbar
 button to put it there.
 
 It is a toggle, so running the action again closes the window. Escape closes it
-too.
+too - unless the keyboard's ring is on a control or a menu is open, when the
+first Escape only lets go of that.
 
 ### If something goes wrong
 
@@ -164,7 +165,8 @@ written as its share of the bar. The MIDI that leaves for REAPER is gated
 exactly as it always was.
 
 **The page can be read black on white.** *Light Page*, under the staff, turns
-the paper over and is remembered between sessions. Only the page turns over -
+the paper over and is remembered between sessions. The light paper is a soft
+off-white rather than a white that glares in a dark window. Only the page turns over -
 the window keeps its own colours, because this is a sheet of paper laid on the
 desk rather than a second theme for the app.
 
@@ -199,7 +201,15 @@ The window follows Apple's design guidelines for Mac apps
   and **Cmd+0** goes back to 100%. It remembers your choice.
 - **The keyboard alone works.** Press **Tab** or an arrow key and a white
   ring appears round a control; Tab and the arrows move it, and **Space** or
-  **Return** clicks. **Esc** closes the window.
+  **Return** clicks. **Esc** lets go of the ring (or closes the menu) first;
+  with nothing in hand, it closes the window.
+- **Rows wrap** at the window's edge at any text size, so nothing is cut off,
+  and the window can't be made so small that a control is out of reach.
+- **While a block auditions**, the note sounding is yellow **and** has a small
+  wedge above it, so you can follow it without telling the colours apart.
+- **Tooltips** say what each slider and the Loop box do, and appear for the
+  control the keyboard is on as well as the one under the pointer.
+- **The window's title names the block** you are looking at.
 - **Messages appear at the top** and stay until you click **Dismiss**.
 - A chosen button is yellow **and** has a dark bar under its name, so it
   doesn't depend on seeing colour.

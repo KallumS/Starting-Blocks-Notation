@@ -331,6 +331,8 @@ until *Dismiss*. Rules for new code: every fixed size goes through `px()`,
 every button through `pick()` (never narrower than its label), every text
 colour 7:1. `tests/hig_mock.lua` - the same file in every ReaImGui repo of
 the family - adds the calls to the mock and checks each of these per widget.
+**The final sweep** (1.2, 0017's dated section): the same window changes as Starting Blocks 2.5 - menus and tooltips `#2A2F37` with a `#3A404A` rule; slider tracks and tick boxes through `slider()`/`checkbox()`, which add a `#8A919C` edge, a tooltip and their place in the row; **no bare `SameLine` between controls** (`flowStart`, then `flowNext`/`flowNextW`/`flowText`); words wrapped (`dim()`, `flowText`), tooltips wrapped (`tip()`); Escape lets go of focus or a menu first; a minimum window size; the title names the block. On the page, the sounding note also gets a wedge above it (`MARK_*` in `sb_draw.lua`), so it is not shown by colour alone; the light page's accent is `shade(SELECTED, -0.45)`, 3.2:1 on its paper. `test_ui`'s ruler fails any line wider than the narrowest window at 100% or 200%, in every state of every panel, and the page's ink, staff lines and sounding note are checked 7:1, 3:1 and 3:1 on both papers.
+
 The text size is a window setting like Light Page, kept on `ui` (`ui.textSize`) and saved in the state string beside `VIEW`, clamped by `setTextSize`; the page itself is a picture of music and keeps its own staff size. `tools/preview.lua` knows the new calls.
 
 The step numbers are **neutral, not an accent**, and the test holds that in
@@ -389,7 +391,9 @@ asserts that **nothing is drawn in the accent while nothing is playing**, which
 is the assertion that would catch someone restoring the old rule by habit.
 
 **The page can be turned over, and only the page** (0012). A **Light Page**
-toggle draws it black on white; the window keeps its chrome either way, because
+toggle draws it black on an off-white (`#E8EBEF`, the dark page's ink: pure
+white glares in a dark window), with the dark page's staff colour (3:1 or more
+on either paper); the window keeps its chrome either way, because
 a light page is a sheet of paper on the desk rather than a second theme for the
 app. `PAGES` holds the two, and the light one's accent is the same yellow
 through `shade()` rather than a fourth colour - a saturated yellow is invisible

@@ -42,3 +42,23 @@ The same as Midi Suggester's 0009, so the family's windows behave alike:
   Contrast, right to left. Escape still closes the window.
 - Unverified in REAPER: the zoom keys reaching the window, and which face
   "sans-serif" resolves to.
+
+## The final sweep (16–21 October 2026, 1.2)
+
+Every guideline of the 19 pages checked again, with the decisions the family
+took together ([`docs/apple-hig-review.md`](../apple-hig-review.md), *Final
+sweep*). The window takes Starting Blocks 2.5's changes word for word (its
+0009): raised menus and tooltips, house greys for ImGui's defaults, shortcut
+keys 7:1, a 4.7:1 edge on slider tracks and tick boxes, a 3:1 scrollbar grab,
+rows that wrap, wrapped words and tooltips, a minimum size, Escape letting go
+first, the block's name in the title. Two are this app's own:
+
+- **The light page is an off-white** (`#E8EBEF`, the dark page's ink turned
+  over) rather than `#F5F7FA`: a white page glares in a dark window. Its staff
+  lines were `#99A2B0`, 2.4:1, and are now the dark page's `#6E7683` (3.8:1);
+  its accent moves to `shade(SELECTED, -0.45)`, `#8C8500`, 3.2:1.
+- **The sounding note is not shown by colour alone**: a wedge in the accent
+  points down at it from the room above the system that the page already
+  keeps, so nothing is drawn outside `D.height`.
+
+The page keeps its own staff size at every text size, as before.
