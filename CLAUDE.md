@@ -43,6 +43,7 @@ person who finds it inconvenient.
 | `reascripts/sb_glyphs.lua` | Bravura's symbols as polygons. **Generated** by `tools/bake_glyphs.py`; never hand-edited. |
 | `reascripts/sb_midi.lua` | The MIDI file writer. Pure. |
 | `reascripts/sb_place.lua` | Everything that touches REAPER. |
+| `plugin/` | The VST3/CLAP plugin: this window script on a stand-in for ReaImGui (0018). |
 
 That split is the whole reason the tests are worth anything. The engine is pure
 so it can be run and checked; `sb_place.lua` touches REAPER but not ImGui, so a
@@ -517,6 +518,7 @@ tools/test.sh
 | `test_midi.lua` | The MIDI writer, read back by a parser that is not itself. |
 | `test_place.lua` | Inserting, exporting and auditioning, against a mocked REAPER. |
 | `test_ui.lua` | The real script against a mocked ReaImGui. |
+| `test_plugin.lua` | The real script as the plugin runs it, against only the calls the plugin provides. |
 
 `tests/test_ui.lua` runs the real script against a mocked ReaImGui whose
 `__index` raises on anything it does not have, so calling a ReaImGui function
@@ -528,7 +530,9 @@ script on top of its own saved settings, and loads state at both ends of every
 clamp.
 
 When you add a control, nothing needs to be added to the test: the sweep finds
-it. When you add a ReaImGui function, add it to the mock.
+it. When you add a ReaImGui function, add it to the mock **and to
+`plugin/source/ImGuiLua.cpp`**, or the plugin's window stops on it
+(`test_plugin.lua` fails first).
 
 **The sweep cannot see one control swapped for another.** It clicks what is on
 screen, so a panel that shows A where it used to show B still draws, still
@@ -660,3 +664,27 @@ stay free of `reaper.`
 A "place with the mouse" mode was built - it asked which track the pointer was
 over and what time it pointed at - and removed, because Insert at Cursor does
 the job.
+
+## The plugin (0018)
+
+`plugin/build.sh` builds the VST3 and CLAP (and, with
+`EXTRA_TARGETS=sb_smoke`, `plugin/build/sb_smoke out.png [height]`, the
+hostless smoke test that also paints the window). The workflow in
+`.github/workflows/plugin.yml` runs the suites, builds on a Mac, runs the
+smoke test, pluginval and clap-validator, and zips the plugins.
+
+- The plugin runs this window script. Its REAPER half is
+  `plugin/lua/sb_place.lua`; keep its functions in step with
+  `reascripts/sb_place.lua`.
+- The script's plugin controls hang off `Place.dragOut`,
+  `Place.setPlayingWithSong` and `Place.HOST`. Keep them behind those, so
+  REAPER's window is unchanged.
+- One frame runs unseen as the plugin is made, so the block is handed over
+  even if the window is never opened; a loaded project restarts the script,
+  which reads its settings at start.
+- CI's artifacts and logs cannot reach the cloud container as files; the
+  workflow pushes its screenshots to a throwaway `ci-screenshots` branch,
+  which can be fetched with git.
+- `plugin/` is Starting Blocks' plugin, file for file, except
+  `plugin/CMakeLists.txt` (the name, the script, the codes). A fix to it
+  goes to both repositories, as the engine's do.

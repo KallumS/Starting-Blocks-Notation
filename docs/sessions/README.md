@@ -24,3 +24,4 @@ disk space.
 | [2026-10-14](2026-10-14-apple-writing.md) | The window's words to Apple's writing guidelines, with Starting Blocks. |
 | [2026-10-15](2026-10-15-apple-hig.md) | The rest of Apple's HIG Foundations. |
 | [2026-10-21](2026-10-21-hig-final-sweep.md) | The final sweep of Apple's HIG Foundations (1.2), with Starting Blocks. |
+| [2026-10-24](2026-10-24-plugin.md) | VST3 and CLAP plugins: the window script on a stand-in for ReaImGui. |
