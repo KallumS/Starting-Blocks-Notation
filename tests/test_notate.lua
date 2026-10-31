@@ -996,6 +996,92 @@ do
 end
 
 ------------------------------------------------------------------------------
+-- Rests in a part that is as played (0019)
+------------------------------------------------------------------------------
+
+-- What another app hands over: notes as they sound, not gated blocks.
+local function played(notes, beats, rests)
+  local list = {}
+  for i, n in ipairs(notes) do list[i] = { start = n[1], len = n[2], pitch = n[3] or 67, vel = 100 } end
+  local block = { notes = list, beats = beats, name = "played" }
+  return N.layout(block, { barBeats = 4, width = 90, rests = rests })
+end
+local function shape(m)
+  local out = {}
+  for _, el in ipairs(elements(m)) do
+    out[#out + 1] = (el.kind == "rest" and "rest" or "note") .. ":" .. string.format("%d", math.floor(el.ticks + 0.5))
+  end
+  return table.concat(out, " ")
+end
+local Q = N.TPQ
+
+-- A quarter, an eighth and an eighth's silence, two quarters: the silence is
+-- written as an eighth rest where it falls.
+do
+  local notes = { { 0, 1 }, { 1, 0.5 }, { 2, 1 }, { 3, 1 } }
+  eq(shape(played(notes, 4, true).measures[1]),
+     ("note:%d note:%d rest:%d note:%d note:%d"):format(Q, Q / 2, Q / 2, Q, Q),
+     "a silence inside a phrase is a rest where it falls")
+  eq(shape(played(notes, 4, false).measures[1]),
+     ("note:%d note:%d note:%d note:%d"):format(Q, Q, Q, Q),
+     "without opts.rests the note still runs to the next onset (0005)")
+end
+
+-- Articulation is not a rest: a note sounding most of its slot reaches its end.
+do
+  local notes = { { 0, 0.82 }, { 1, 0.95 }, { 2, 0.9 }, { 3, 0.97 } }
+  eq(shape(played(notes, 4, true).measures[1]),
+     ("note:%d note:%d note:%d note:%d"):format(Q, Q, Q, Q),
+     "notes sounding 82-97% of their slot are written without rests")
+end
+
+-- A gated block reads exactly as it did: at the engine's own gate of 90% the
+-- option changes nothing on the page.
+do
+  local differ, tried = nil, 0
+  for _, cat in ipairs({ "Chord", "Arpeggio", "Run", "Melody" }) do
+    for _, rate in ipairs({ "1/4", "1/8", "1/16" }) do
+      local st = state(function(s) s.cat, s.rate, s.chop = cat, RATE(rate), RATE(rate) end)
+      local block = E.generate(st)
+      local base = { barBeats = st.barBeats, ctx = N.context(E, st), grid = N.gridFor(E, st), width = 90 }
+      local a = N.layout(block, base)
+      base.rests = true
+      local b = N.layout(block, base)
+      tried = tried + 1
+      for i, m in ipairs(a.measures) do
+        if shape(m) ~= shape(b.measures[i]) then differ = differ or (cat .. " " .. rate .. " measure " .. i) end
+      end
+    end
+  end
+  ok(tried >= 12, "the gated sweep covered blocks (" .. tried .. ")")
+  ok(differ == nil, "a block gated at 90% is written the same with opts.rests: " .. tostring(differ))
+end
+
+-- And whatever the gate, every measure is still filled exactly.
+do
+  local bad, tried = nil, 0
+  for _, gate in ipairs({ 20, 50, 75, 100 }) do
+    for _, cat in ipairs({ "Chord", "Arpeggio", "Run", "Melody" }) do
+      for _, rate in ipairs({ "1/4", "1/8", "1/16" }) do
+        local st = state(function(s) s.cat, s.rate, s.chop, s.gate = cat, RATE(rate), RATE(rate), gate end)
+        local doc = N.layout(E.generate(st), { barBeats = st.barBeats, ctx = N.context(E, st),
+                                               grid = N.gridFor(E, st), width = 90, rests = true })
+        tried = tried + 1
+        for _, m in ipairs(doc.measures) do
+          for si, staff in ipairs(m.staves) do
+            local sum = 0
+            for _, el in ipairs(staff.elements) do sum = sum + el.ticks end
+            if sum ~= m.used and sum ~= 0 then bad = bad or (cat .. " " .. rate .. " gate " .. gate .. " measure " .. m.index .. " staff " .. si) end
+          end
+        end
+      end
+    end
+  end
+  ok(tried >= 48, "the rests sweep covered blocks (" .. tried .. ")")
+  ok(bad == nil, "with opts.rests every measure is still filled exactly: " .. tostring(bad))
+end
+
+------------------------------------------------------------------------------
 
 io.write(("%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)
