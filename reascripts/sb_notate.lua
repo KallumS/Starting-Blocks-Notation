@@ -314,7 +314,7 @@ local function tick(beats) return math.floor(beats * M.TPQ + 0.5) end
 -- 63/64ths-and-a-rest where a whole note belongs. What the notation wants is
 -- the note's share of the bar, which is the distance to whatever starts next.
 -- The gate is a property of the MIDI, and the MIDI is still exported gated.
-local function events(notes, total, capTicks, gridTicks)
+local function events(notes, total, capTicks, gridTicks, restTicks)
   local by, order = {}, {}
   local taken = {}
   local raw = {}
@@ -351,6 +351,18 @@ local function events(notes, total, capTicks, gridTicks)
     -- A drum does not sustain, so a lone crash in an eight-bar block is a hit
     -- and then silence rather than eight bars of tied whole notes.
     if capTicks then e.dur = math.min(e.dur, capTicks) end
+    -- Notes that are as played rather than gated (another app's part, opts.rests)
+    -- keep their silences (0019): where the sound stops, rounded up to the rest
+    -- grid, and a rest only when at least one step of that grid is left before
+    -- the next onset. Rounding up is what keeps articulation out of it: a note
+    -- sounding nine tenths of its slot reaches the slot's end.
+    if restTicks and not capTicks then
+      local sounds = 0
+      for _, n in ipairs(e.notes) do sounds = math.max(sounds, tick(n.len or 0)) end
+      local stop = math.ceil((t + sounds) / restTicks) * restTicks
+      if stop <= t then stop = t + restTicks end
+      if nextAt - stop >= restTicks then e.dur = stop - t end
+    end
     out[#out + 1] = e
   end
   return out
@@ -387,7 +399,9 @@ local function beamGroup(tsNum, tsDen)
 end
 
 -- `block` is what sb_engine.generate returns. `opts` carries the bar, the
--- signature, the key context, and whether this is the kit.
+-- signature, the key context, and whether this is the kit; `opts.rests` says
+-- the notes are as played rather than gated, so a silence of a sixteenth
+-- (`opts.restGrid`, in beats) or more is written as a rest (0019).
 function M.layout(block, opts)
   opts = opts or {}
   local ctx      = opts.ctx or { sig = { count = 0, kind = "sharp" },
@@ -411,7 +425,8 @@ function M.layout(block, opts)
   local bars  = math.max(1, math.ceil((total - EPS) / barTicks))
 
   local grid = opts.grid and tick(opts.grid) or nil
-  local evts = block and events(block.notes, total, drums and barTicks or nil, grid) or {}
+  local rests = opts.rests and tick(opts.restGrid or 0.25) or nil
+  local evts = block and events(block.notes, total, drums and barTicks or nil, grid, rests) or {}
   local assign
   doc.staves, assign = chooseStaves(evts, ctx, drums)
 
