@@ -427,7 +427,9 @@ found them by reading the code rather than the music:
   it and stops. Notating that literally puts a tied 63/64ths and a rest where a
   whole note belongs. `events()` therefore takes each note's duration as the
   distance to whatever starts next. The MIDI is still exported gated - this is
-  the notation's business only.
+  the notation's business only. A caller whose notes are as played rather than
+  gated (Middaw's clips) passes `opts.rests`, and a silence of a sixteenth or
+  more is written as a rest (0019); the window does not pass it.
 - **A shuffle is written straight.** It pushes every second hit a third of the
   way to the next, which no note value can name. Printed music writes a shuffle
   straight and names it at the top, which the block's own name already did

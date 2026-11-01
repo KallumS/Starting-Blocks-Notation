@@ -35,3 +35,4 @@ version and points here.
 | [0016](0016-the-window-follows-apples-writing-guidelines.md) | The window's text follows Apple's writing guidelines | Accepted |
 | [0017](0017-apples-hig-foundations.md) | Apple's HIG Foundations are the standard for the window | Accepted |
 | [0018](0018-the-plugin-runs-the-window-script.md) | The plugin runs the window script on a stand-in for ReaImGui |
+| [0019](0019-a-part-as-played-keeps-its-rests.md) | A part handed over as played keeps its rests (`opts.rests`) | Accepted |
