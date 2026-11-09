@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ReaPack index for Starting Blocks Notation.
+
+  Add this repository in REAPER with Extensions > ReaPack > Import repositories,
+  pasting the raw URL of this file on the default branch:
+
+    https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/main/index.xml
+
+  That URL only resolves once this file is on the default branch.
+
+  Each <source> is pinned to a commit rather than a branch, so an installed
+  version is the exact set of files that was tested and cannot change
+  underneath anyone. Publishing a new version means adding a <version> block
+  with a fresh commit hash - never editing an existing one.
+
+  One package: the files install into one folder, because the main script
+  loads the others from beside itself. Needs ReaImGui (also from ReaPack).
+
+  ReaPack keys an installed package by its NAME, so renaming a file is not an
+  upgrade. Rename sparingly.
+-->
+<index version="1" name="Starting Blocks Notation">
+  <category name="MIDI">
+
+    <reapack name="Starting Blocks Notation.lua" type="script" desc="Starting Blocks Notation">
+      <version name="1.2" author="kallums" time="2026-11-01T14:45:58Z">
+        <changelog><![CDATA[First release through ReaPack. Starting Blocks read as notation: the same catalogue of chords, arpeggios, runs and steps, picked by key, scale and degree, shown on a staff and dropped into the project as MIDI. Needs ReaImGui.]]></changelog>
+        <source main="main" file="Starting Blocks Notation.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/Starting%20Blocks%20Notation.lua</source>
+        <source file="sb_engine.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_engine.lua</source>
+        <source file="sb_midi.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_midi.lua</source>
+        <source file="sb_place.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_place.lua</source>
+        <source file="sb_notate.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_notate.lua</source>
+        <source file="sb_draw.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_draw.lua</source>
+        <source file="sb_glyphs.lua">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_glyphs.lua</source>
+        <source file="sb_glyphs-OFL.txt">https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/904a9d3989186019c2317c9b962b7e58f26f7ddc/reascripts/sb_glyphs-OFL.txt</source>
+      </version>
+      <metadata>
+        <description><![CDATA[{\pard Starting Blocks Notation\par
+Starting Blocks read as notation: the smallest useful pieces of music, picked by key, scale and scale degree, read on a staff, then dropped into a REAPER project as MIDI.\par
+Needs ReaImGui: in ReaPack, Browse packages, search for ReaImGui and install it.\par
+}]]></description>
+        <link rel="website">https://github.com/KallumS/Starting-Blocks-Notation</link>
+      </metadata>
+    </reapack>
+
+  </category>
+</index>

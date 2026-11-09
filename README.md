@@ -38,6 +38,14 @@ F# major spells its seventh E#, here as there - and now you can see it do so.
 
 ## Installing
 
+**With ReaPack** (easiest, and it keeps it up to date): Extensions ->
+ReaPack -> Import repositories, paste
+`https://raw.githubusercontent.com/KallumS/Starting-Blocks-Notation/main/index.xml`,
+then Browse packages, find Starting Blocks Notation and Install. You still need ReaImGui (step 1 below). That link only works
+once this has been merged into the main branch.
+
+**By hand:**
+
 It installs beside the original rather than over it: different file names, and
 its own saved settings. Having both is fine.
 
