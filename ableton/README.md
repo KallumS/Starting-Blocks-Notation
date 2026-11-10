@@ -36,7 +36,7 @@ The settings and the key are saved with the Live set.
 ableton/device.json` writes the `.amxd`, the `.maxpat` and the script bundle
 `StartingBlocksNotation.js`. The bundle is Middaw's Lua 5.4 runtime, the engine and the notation files, the Noterator adapter (`ableton/adapters/`) and the shared window (`ableton/kit/generator.js`), whose score panel draws what Middaw's `engrave` call records. See `ableton/kit/VENDORED.md`.
 
-`node --test ableton/tests/test_device.js` runs the device on a pretend Max and a pretend Live set: every setting stepped through, hearing a result (every note started is stopped), each way of inserting, a full track refused, following Live's scale, and saving and restoring with the set. Its own tests engrave every block of every kind and check F# major draws its six sharps.
+`node --test ableton/tests/test_device.js` runs the device on a pretend Max and a pretend Live set: every setting stepped through, hearing a result (every note started is stopped), each way of inserting, a full track refused, following Live's scale, and saving and restoring with the set. Its own tests engrave every block of every kind and check F# major draws its six sharps. `node ableton/window.js` redraws the picture above from the device's own drawing code (it needs Playwright's Chromium).
 
 ## Limits
 

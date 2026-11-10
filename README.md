@@ -38,6 +38,8 @@ F# major spells its seventh E#, here as there - and now you can see it do so.
 
 **In Ableton Live:** `ableton/` has Starting Blocks Notation as a Max for Live MIDI effect. See [`ableton/README.md`](ableton/README.md).
 
+![Starting Blocks Notation in Ableton Live](ableton/window.png)
+
 ## Installing
 
 **With ReaPack** (easiest, and it keeps it up to date): Extensions ->
