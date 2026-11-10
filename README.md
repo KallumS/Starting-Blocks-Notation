@@ -36,6 +36,8 @@ The keys, scales and note spelling are
 unchanged, so the apps agree on what a scale is and on what to call its notes.
 F# major spells its seventh E#, here as there - and now you can see it do so.
 
+**In Ableton Live:** `ableton/` has Starting Blocks Notation as a Max for Live MIDI effect. See [`ableton/README.md`](ableton/README.md).
+
 ## Installing
 
 **With ReaPack** (easiest, and it keeps it up to date): Extensions ->

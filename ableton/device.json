@@ -1,0 +1,33 @@
+{
+  "name": "Starting Blocks Notation",
+  "slug": "StartingBlocksNotation",
+  "kind": "midi",
+  "template": "midi_effect",
+  "width": 1240,
+  "device": {
+    "generator": "starting-blocks",
+    "notation": true
+  },
+  "files": {
+    "starting-blocks/sb_engine.lua": "../reascripts/sb_engine.lua",
+    "notation/sb_notate.lua": "../reascripts/sb_notate.lua",
+    "notation/sb_draw.lua": "../reascripts/sb_draw.lua",
+    "notation/sb_glyphs.lua": "../reascripts/sb_glyphs.lua",
+    "adapters/common.lua": "adapters/common.lua",
+    "adapters/starting_blocks.lua": "adapters/starting_blocks.lua",
+    "adapters/index.lua": {
+      "text": "return { \"adapters/starting_blocks.lua\" }\n"
+    }
+  },
+  "scripts": [
+    "kit/runtime/polyfill.js",
+    "kit/runtime/lua_parse.js",
+    "kit/runtime/lua_runtime.js",
+    "kit/runtime/lua_compile.js",
+    "kit/runtime/host.js",
+    "kit/ui.js",
+    "kit/live.js",
+    "kit/generator.js"
+  ],
+  "description": "The smallest useful pieces of music on every degree of the key, read as notation."
+}
