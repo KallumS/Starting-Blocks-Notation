@@ -2,6 +2,8 @@
 
 A Max for Live MIDI effect. The blocks come from `reascripts/sb_engine.lua` and the notation from `sb_notate.lua`, `sb_draw.lua` and `sb_glyphs.lua`, the same files the REAPER script runs, unchanged.
 
+**Its colours are Live's**, after Ableton Live 8's default theme: neutral greys and one amber for what is on, so it sits beside Live's own devices. The REAPER version keeps the house scheme's yellow.
+
 ## Installing
 
 Needs **Live 12.1 or later with Max for Live** (Live Suite, or Standard with

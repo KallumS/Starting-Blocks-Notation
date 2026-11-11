@@ -17,3 +17,9 @@ Results go into a new Session clip on the device's track, the Arrangement at the
 - `ableton/kit/` is copied into every family repository with a device; `VENDORED.md` there records where each part came from.
 - The bundle is built, not hand-written, and `tools/test.sh` fails when it is stale.
 - Nothing here has been opened in Live. The tests run the device in Node on a stand-in for Max and the Live Object Model.
+
+## 11 November 2026: Live's colours
+
+The user asked for the Ableton versions to look like Ableton, and pointed to the Ableton-inspired scheme the family had tried: Starting Blocks' window themed after Live 8 on 18 September 2026 (commit 2765b0a3), neutral greys with a warm amber accent, replaced the same day by the yellow house scheme. The devices now draw in that scheme (`ableton/kit/palette.js`), with two changes so the family's rules hold: the chrome is #3E3E3E rather than #4A4A4A, because on the lighter grey a secondary word cannot reach 7:1 and still look secondary; and the buttons are light grey with dark ink, because light words on its #5E5E5E buttons reach only 5:1. The greys are neutral, as Live's are, not blue-shifted as the house scheme's.
+
+Everything the device draws goes through `UI.C`, which is the palette. The REAPER version keeps the house scheme. `kit/test/palette_suite.js` holds the contrast, and was checked by breaking each rule.
